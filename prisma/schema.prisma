@@ -1,0 +1,555 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Usuários e Acesso ────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ATENDENTE)
+  avatar    String?
+  active    Boolean  @default(true)
+  crmv      String?
+  specialty String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agendamentos Agendamento[]   @relation("MedicoAgendamento")
+  atendimentos Atendimento[]   @relation("MedicoAtendimento")
+  comissoes    Comissao[]
+  notificacoes Notificacao[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  VETERINARIO
+  ATENDENTE
+  FINANCEIRO
+}
+
+// ─── Tutores e Animais ────────────────────────────────────────────────────────
+
+model Tutor {
+  id         String   @id @default(cuid())
+  nome       String
+  cpf        String?  @unique
+  email      String?
+  telefone   String
+  celular    String?
+  cep        String?
+  logradouro String?
+  numero     String?
+  bairro     String?
+  cidade     String?
+  estado     String?
+  obs        String?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  animais Animal[]
+  vendas  Venda[]
+
+  @@map("tutores")
+}
+
+model Animal {
+  id        String    @id @default(cuid())
+  tutorId   String
+  nome      String
+  especie   Especie   @default(CACHORRO)
+  raca      String?
+  sexo      Sexo      @default(MACHO)
+  dataNasc  DateTime?
+  peso      Float?
+  cor       String?
+  pelagem   String?
+  microchip String?
+  castrado  Boolean   @default(false)
+  foto      String?
+  obs       String?
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tutor        Tutor            @relation(fields: [tutorId], references: [id])
+  agendamentos Agendamento[]
+  atendimentos Atendimento[]
+  vacinas      VacinaAplicada[]
+  internacoes  Internacao[]
+  pesos        PesoRegistro[]
+
+  @@map("animais")
+}
+
+enum Especie {
+  CACHORRO
+  GATO
+  PASSARO
+  REPTIL
+  ROEDOR
+  PEIXE
+  OUTRO
+}
+
+enum Sexo {
+  MACHO
+  FEMEA
+}
+
+// ─── Agenda ───────────────────────────────────────────────────────────────────
+
+model Agendamento {
+  id          String            @id @default(cuid())
+  animalId    String
+  medicoId    String?
+  tipoId      String?
+  inicio      DateTime
+  fim         DateTime
+  status      StatusAgendamento @default(AGENDADO)
+  obs         String?
+  confirmado  Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  animal      Animal           @relation(fields: [animalId], references: [id])
+  medico      User?            @relation("MedicoAgendamento", fields: [medicoId], references: [id])
+  tipo        TipoAtendimento? @relation(fields: [tipoId], references: [id])
+  atendimento Atendimento?
+
+  @@map("agendamentos")
+}
+
+enum StatusAgendamento {
+  AGENDADO
+  CONFIRMADO
+  EM_ATENDIMENTO
+  CONCLUIDO
+  CANCELADO
+  FALTOU
+}
+
+model TipoAtendimento {
+  id         String  @id @default(cuid())
+  nome       String
+  cor        String  @default("#3B82F6")
+  duracaoMin Int     @default(30)
+  ativo      Boolean @default(true)
+
+  agendamentos Agendamento[]
+
+  @@map("tipos_atendimento")
+}
+
+// ─── Prontuário ───────────────────────────────────────────────────────────────
+
+model Atendimento {
+  id            String   @id @default(cuid())
+  animalId      String
+  medicoId      String
+  agendamentoId String?  @unique
+  data          DateTime @default(now())
+  queixa        String?
+  diagnostico   String?
+  prognostico   String?
+  tratamento    String?
+  retorno       DateTime?
+  obs           String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  animal      Animal       @relation(fields: [animalId], references: [id])
+  medico      User         @relation("MedicoAtendimento", fields: [medicoId], references: [id])
+  agendamento Agendamento? @relation(fields: [agendamentoId], references: [id])
+  exameClinico ExameFisico?
+  receitas     Receita[]
+  exames       ExameSolicitado[]
+  documentos   Documento[]
+  pesos        PesoRegistro[]
+
+  @@map("atendimentos")
+}
+
+model ExameFisico {
+  id            String  @id @default(cuid())
+  atendimentoId String  @unique
+  peso          Float?
+  temperatura   Float?
+  freqCardiaca  Int?
+  freqResp      Int?
+  tpc           String?
+  hidratacao    String?
+  mucosas       String?
+  linfonodos    String?
+  pulso         String?
+  escoreCorp    Int?
+  obs           String?
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("exames_fisicos")
+}
+
+model PesoRegistro {
+  id            String   @id @default(cuid())
+  animalId      String
+  atendimentoId String?
+  peso          Float
+  data          DateTime @default(now())
+
+  animal      Animal       @relation(fields: [animalId], references: [id])
+  atendimento Atendimento? @relation(fields: [atendimentoId], references: [id])
+
+  @@map("peso_registros")
+}
+
+model Receita {
+  id            String   @id @default(cuid())
+  atendimentoId String
+  medicamento   String
+  dose          String?
+  frequencia    String?
+  duracao       String?
+  obs           String?
+  createdAt     DateTime @default(now())
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("receitas")
+}
+
+model ExameSolicitado {
+  id            String      @id @default(cuid())
+  atendimentoId String
+  nome          String
+  tipo          TipoExame   @default(LABORATORIAL)
+  status        StatusExame @default(SOLICITADO)
+  resultado     String?
+  arquivo       String?
+  createdAt     DateTime    @default(now())
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("exames_solicitados")
+}
+
+enum TipoExame {
+  LABORATORIAL
+  IMAGEM
+  OUTRO
+}
+
+enum StatusExame {
+  SOLICITADO
+  COLETADO
+  CONCLUIDO
+}
+
+model Documento {
+  id            String   @id @default(cuid())
+  atendimentoId String
+  tipo          String
+  titulo        String
+  conteudo      String
+  createdAt     DateTime @default(now())
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("documentos")
+}
+
+// ─── Vacinas ──────────────────────────────────────────────────────────────────
+
+model Vacina {
+  id            String @id @default(cuid())
+  nome          String
+  fabricante    String?
+  intervaloDias Int    @default(365)
+  ativo         Boolean @default(true)
+
+  aplicacoes VacinaAplicada[]
+
+  @@map("vacinas")
+}
+
+model VacinaAplicada {
+  id             String   @id @default(cuid())
+  animalId       String
+  vacinaId       String
+  lote           String?
+  dataAplicacao  DateTime
+  dataVencimento DateTime?
+  obs            String?
+  createdAt      DateTime @default(now())
+
+  animal Animal @relation(fields: [animalId], references: [id])
+  vacina Vacina @relation(fields: [vacinaId], references: [id])
+
+  @@map("vacinas_aplicadas")
+}
+
+// ─── Internação ───────────────────────────────────────────────────────────────
+
+model Internacao {
+  id        String           @id @default(cuid())
+  animalId  String
+  entrada   DateTime         @default(now())
+  saida     DateTime?
+  status    StatusInternacao @default(INTERNADO)
+  motivo    String?
+  baia      String?
+  obs       String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  animal    Animal               @relation(fields: [animalId], references: [id])
+  evolucoes EvolucaoInternacao[]
+
+  @@map("internacoes")
+}
+
+enum StatusInternacao {
+  INTERNADO
+  ALTA
+  OBITO
+}
+
+model EvolucaoInternacao {
+  id           String   @id @default(cuid())
+  internacaoId String
+  data         DateTime @default(now())
+  descricao    String
+  temperatura  Float?
+  peso         Float?
+
+  internacao Internacao @relation(fields: [internacaoId], references: [id], onDelete: Cascade)
+
+  @@map("evolucoes_internacao")
+}
+
+// ─── Produtos e Estoque ───────────────────────────────────────────────────────
+
+model Categoria {
+  id   String        @id @default(cuid())
+  nome String
+  tipo TipoCategoria @default(PRODUTO)
+
+  produtos Produto[]
+
+  @@map("categorias")
+}
+
+enum TipoCategoria {
+  PRODUTO
+  SERVICO
+}
+
+model Produto {
+  id          String      @id @default(cuid())
+  categoriaId String?
+  codigo      String?     @unique
+  nome        String
+  tipo        TipoProduto @default(PRODUTO)
+  descricao   String?
+  preco       Float
+  custo       Float?
+  estoque     Float       @default(0)
+  estoqueMin  Float       @default(0)
+  unidade     String      @default("un")
+  ativo       Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  categoria     Categoria?   @relation(fields: [categoriaId], references: [id])
+  itensVenda    ItemVenda[]
+  movimentacoes MovEstoque[]
+  comissoes     Comissao[]
+
+  @@map("produtos")
+}
+
+enum TipoProduto {
+  PRODUTO
+  SERVICO
+  MEDICAMENTO
+}
+
+model MovEstoque {
+  id         String  @id @default(cuid())
+  produtoId  String
+  tipo       TipoMov @default(ENTRADA)
+  quantidade Float
+  custo      Float?
+  motivo     String?
+  data       DateTime @default(now())
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("mov_estoque")
+}
+
+enum TipoMov {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+// ─── Vendas / PDV ─────────────────────────────────────────────────────────────
+
+model Venda {
+  id        String      @id @default(cuid())
+  tutorId   String?
+  status    StatusVenda @default(ABERTA)
+  desconto  Float       @default(0)
+  total     Float
+  obs       String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  tutor      Tutor?      @relation(fields: [tutorId], references: [id])
+  itens      ItemVenda[]
+  pagamentos Pagamento[]
+
+  @@map("vendas")
+}
+
+enum StatusVenda {
+  ABERTA
+  FECHADA
+  CANCELADA
+}
+
+model ItemVenda {
+  id         String @id @default(cuid())
+  vendaId    String
+  produtoId  String
+  quantidade Float
+  preco      Float
+  desconto   Float  @default(0)
+  subtotal   Float
+
+  venda   Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_venda")
+}
+
+model Pagamento {
+  id      String         @id @default(cuid())
+  vendaId String
+  forma   FormaPagamento
+  valor   Float
+  data    DateTime       @default(now())
+  obs     String?
+
+  venda Venda @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  @@map("pagamentos")
+}
+
+enum FormaPagamento {
+  DINHEIRO
+  CARTAO_DEBITO
+  CARTAO_CREDITO
+  PIX
+  BOLETO
+  CONVENIO
+}
+
+// ─── Financeiro ───────────────────────────────────────────────────────────────
+
+model Lancamento {
+  id          String         @id @default(cuid())
+  tipo        TipoLancamento
+  descricao   String
+  valor       Float
+  vencimento  DateTime
+  pagamento   DateTime?
+  status      StatusLanc     @default(PENDENTE)
+  categoria   String?
+  obs         String?
+  createdAt   DateTime       @default(now())
+
+  @@map("lancamentos")
+}
+
+enum TipoLancamento {
+  RECEITA
+  DESPESA
+}
+
+enum StatusLanc {
+  PENDENTE
+  PAGO
+  CANCELADO
+}
+
+// ─── Comissionamento ──────────────────────────────────────────────────────────
+
+model Comissao {
+  id         String   @id @default(cuid())
+  userId     String
+  produtoId  String?
+  vendaId    String?
+  valor      Float
+  percentual Float?
+  data       DateTime @default(now())
+  pago       Boolean  @default(false)
+
+  user    User     @relation(fields: [userId], references: [id])
+  produto Produto? @relation(fields: [produtoId], references: [id])
+
+  @@map("comissoes")
+}
+
+// ─── Notificações ─────────────────────────────────────────────────────────────
+
+model Notificacao {
+  id        String    @id @default(cuid())
+  userId    String
+  titulo    String
+  mensagem  String
+  tipo      TipoNotif @default(INFO)
+  lida      Boolean   @default(false)
+  link      String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notificacoes")
+}
+
+enum TipoNotif {
+  INFO
+  ALERTA
+  SUCESSO
+  ERRO
+}
+
+// ─── Configurações da Clínica ─────────────────────────────────────────────────
+
+model Clinica {
+  id       String  @id @default(cuid())
+  nome     String
+  cnpj     String?
+  telefone String?
+  email    String?
+  logo     String?
+  endereco String?
+  cidade   String?
+  estado   String?
+  cep      String?
+
+  @@map("clinica")
+}

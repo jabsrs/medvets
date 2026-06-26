@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐾 MedVets — Sistema de Gestão Veterinária
 
-## Getting Started
+Plataforma web completa para gestão de clínicas veterinárias.
 
-First, run the development server:
+## Stack
 
+- **Next.js 14** (App Router) + **TypeScript**
+- **Tailwind CSS** + **Lucide React** (ícones)
+- **Prisma 5** + **PostgreSQL**
+- **NextAuth.js** (autenticação JWT)
+- **FullCalendar** (agenda)
+- **Sonner** (toasts)
+
+## Módulos
+
+| Módulo | Rota | Status |
+|--------|------|--------|
+| Dashboard | `/dashboard` | ✅ |
+| Tutores | `/tutores` | ✅ |
+| Animais | `/animais` | ✅ |
+| Prontuário | `/prontuario` | ✅ |
+| Agenda | `/agenda` | ✅ |
+| Vacinas | `/vacinas` | ✅ |
+| Internação | `/internacao` | ✅ |
+| Estoque | `/estoque` | ✅ |
+| Vendas / PDV | `/vendas` | ✅ |
+| Financeiro | `/financeiro` | ✅ |
+| Configurações | `/configuracoes` | ✅ |
+
+## Configuração
+
+### 1. Instalar dependências
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configurar banco de dados
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Edite `.env` com sua conexão PostgreSQL:
+```env
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/medvets?schema=public"
+NEXTAUTH_SECRET="troque-por-uma-chave-secreta"
+NEXTAUTH_URL="http://localhost:3000"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Criar banco e aplicar schema
+```bash
+npm run db:push
+```
 
-## Learn More
+### 4. Popular com dados de demonstração
+```bash
+npm run db:seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Iniciar o servidor
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Acesse: http://localhost:3000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Credenciais de demo
 
-## Deploy on Vercel
+| Usuário | Email | Senha | Perfil |
+|---------|-------|-------|--------|
+| Admin | admin@medvets.com | admin123 | Admin |
+| Dra. Ana Souza | dra.ana@medvets.com | vet123 | Veterinária |
+| Dr. Carlos Lima | dr.carlos@medvets.com | vet123 | Veterinário |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts disponíveis
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev          # Servidor de desenvolvimento
+npm run build        # Build de produção
+npm run db:push      # Aplica o schema no banco
+npm run db:seed      # Popula com dados de demo
+npm run db:studio    # Abre o Prisma Studio
+```
