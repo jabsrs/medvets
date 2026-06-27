@@ -21,7 +21,8 @@ export default function LoginPage() {
     if (res?.ok) {
       router.push("/dashboard");
     } else {
-      toast.error("Email ou senha inválidos");
+      const msg = res?.error ?? "Email ou senha inválidos";
+      toast.error(msg);
     }
   }
 
@@ -65,7 +66,7 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-xs text-gray-400 mt-6">
-          Demo: admin@medvets.com / admin123
+          MedVets © {new Date().getFullYear()}
         </p>
       </div>
     </div>

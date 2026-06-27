@@ -3,8 +3,15 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
+const MAX_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+const SESSION_HOURS = 8;
+
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_HOURS * 60 * 60,
+  },
   pages: { signIn: "/login" },
   providers: [
     CredentialsProvider({
@@ -15,12 +22,49 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
+
         if (!user || !user.active) return null;
+
+        // Verifica bloqueio por tentativas excessivas
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          const minutosRestantes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+          throw new Error(`Conta bloqueada. Tente novamente em ${minutosRestantes} minuto(s).`);
+        }
+
         const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) return null;
+
+        if (!valid) {
+          const novasAttempts = user.loginAttempts + 1;
+          const bloqueado = novasAttempts >= MAX_ATTEMPTS;
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              loginAttempts: novasAttempts,
+              lockedUntil: bloqueado
+                ? new Date(Date.now() + LOCK_MINUTES * 60 * 1000)
+                : null,
+            },
+          });
+
+          if (bloqueado) {
+            throw new Error(`Muitas tentativas. Conta bloqueada por ${LOCK_MINUTES} minutos.`);
+          }
+
+          const restantes = MAX_ATTEMPTS - novasAttempts;
+          throw new Error(`Senha incorreta. ${restantes} tentativa(s) restante(s) antes do bloqueio.`);
+        }
+
+        // Login bem-sucedido — reseta contadores
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { loginAttempts: 0, lockedUntil: null },
+        });
+
         return {
           id: user.id,
           name: user.name,
