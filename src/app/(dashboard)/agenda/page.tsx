@@ -31,6 +31,14 @@ type Animal = { id: string; nome: string; tutor: { nome: string } };
 
 const emptyForm = { animalId: "", medicoId: "", tipoId: "", inicio: "", fim: "", obs: "", status: "AGENDADO" };
 
+const VET_COLORS = [
+  "#2563eb", // azul
+  "#7c3aed", // roxo
+  "#059669", // verde
+  "#dc2626", // vermelho
+  "#d97706", // laranja
+];
+
 export default function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,37 +50,48 @@ export default function AgendaPage() {
   const [tipos, setTipos] = useState<TipoAtend[]>([]);
   const [animais, setAnimais] = useState<Animal[]>([]);
   const [animalQ, setAnimalQ] = useState("");
+  const [filtroMedico, setFiltroMedico] = useState<string>("todos");
   const calRef = useRef<FullCalendar>(null);
+
+  const vetColorMap = (vetId: string) => {
+    const idx = vets.findIndex(v => v.id === vetId);
+    return VET_COLORS[idx % VET_COLORS.length] ?? "#6b7280";
+  };
 
   useEffect(() => {
     fetch("/api/usuarios?role=VETERINARIO").then((r) => r.json()).then(setVets);
     fetch("/api/tipos-atendimento").then((r) => r.json()).then(setTipos);
   }, []);
 
-  useEffect(() => {
-    if (animalQ.length >= 2) {
-      fetch(`/api/animais?q=${encodeURIComponent(animalQ)}`).then((r) => r.json()).then(setAnimais);
-    }
-  }, [animalQ]);
-
   async function loadEvents(start: Date, end: Date) {
-    const res = await fetch(`/api/agendamentos?start=${start.toISOString()}&end=${end.toISOString()}`);
+    const url = `/api/agendamentos?start=${start.toISOString()}&end=${end.toISOString()}`;
+    const res = await fetch(url);
     const data = await res.json();
     setAgendamentos(data);
   }
 
-  const events = agendamentos.map((a) => ({
-    id: a.id,
-    title: `${a.animal.nome} — ${a.animal.tutor.nome}`,
-    start: a.inicio,
-    end: a.fim,
-    backgroundColor: a.tipo?.cor ?? statusAgendamentoCor[a.status],
-    borderColor: a.tipo?.cor ?? statusAgendamentoCor[a.status],
-    extendedProps: { agendamento: a },
-  }));
+  const agendamentosFiltrados = filtroMedico === "todos"
+    ? agendamentos
+    : agendamentos.filter(a => a.medico?.id === filtroMedico);
+
+  const events = agendamentosFiltrados.map((a) => {
+    const cor = filtroMedico === "todos" && a.medico
+      ? vetColorMap(a.medico.id)
+      : (a.tipo?.cor ?? statusAgendamentoCor[a.status]);
+    const vetName = filtroMedico === "todos" && a.medico ? ` · ${a.medico.name.split(" ")[0]}` : "";
+    return {
+      id: a.id,
+      title: `${a.animal.nome} — ${a.animal.tutor.nome}${vetName}`,
+      start: a.inicio,
+      end: a.fim,
+      backgroundColor: cor,
+      borderColor: cor,
+      extendedProps: { agendamento: a },
+    };
+  });
 
   function openNew(start?: string, end?: string) {
-    setForm({ ...emptyForm, inicio: start ?? "", fim: end ?? "" });
+    setForm({ ...emptyForm, inicio: start ?? "", fim: end ?? "", medicoId: filtroMedico !== "todos" ? filtroMedico : "" });
     setModalOpen(true);
   }
 
@@ -152,6 +171,48 @@ export default function AgendaPage() {
         actions={<Button onClick={() => openNew()}><Plus size={16} /> Novo agendamento</Button>}
       />
 
+      {/* Filtro por médica */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <span className="text-sm text-gray-500 font-medium mr-1">Visualizar:</span>
+        <button
+          onClick={() => setFiltroMedico("todos")}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+            filtroMedico === "todos"
+              ? "bg-gray-800 text-white border-gray-800"
+              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          Todas as médicas
+        </button>
+        {vets.map((v, i) => {
+          const cor = VET_COLORS[i % VET_COLORS.length];
+          const ativo = filtroMedico === v.id;
+          return (
+            <button
+              key={v.id}
+              onClick={() => setFiltroMedico(v.id)}
+              style={ativo ? { backgroundColor: cor, borderColor: cor, color: "#fff" } : { borderColor: cor, color: cor }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border bg-white`}
+            >
+              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: ativo ? "#fff" : cor }} />
+              {v.name.split(" ")[0]}
+            </button>
+          );
+        })}
+
+        {/* Legenda na visão geral */}
+        {filtroMedico === "todos" && vets.length > 0 && (
+          <div className="ml-auto flex items-center gap-3 text-xs text-gray-500">
+            {vets.map((v, i) => (
+              <span key={v.id} className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: VET_COLORS[i % VET_COLORS.length] }} />
+                {v.name.split(" ")[0]}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <FullCalendar
           ref={calRef}
@@ -174,15 +235,19 @@ export default function AgendaPage() {
           select={handleDateSelect}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          height="calc(100vh - 220px)"
-          eventContent={(arg) => (
-            <div className="text-xs p-0.5 overflow-hidden">
-              <p className="font-medium truncate">{arg.event.title}</p>
-              {arg.event.extendedProps.agendamento?.tipo?.nome && (
-                <p className="truncate opacity-80">{arg.event.extendedProps.agendamento.tipo.nome}</p>
-              )}
-            </div>
-          )}
+          height="calc(100vh - 280px)"
+          eventContent={(arg) => {
+            const ag = arg.event.extendedProps.agendamento as Agendamento;
+            return (
+              <div className="text-xs p-0.5 overflow-hidden">
+                <p className="font-medium truncate">{ag.animal.nome} — {ag.animal.tutor.nome}</p>
+                <p className="truncate opacity-80">
+                  {ag.tipo?.nome ?? ""}
+                  {filtroMedico === "todos" && ag.medico ? ` · ${ag.medico.name.split(" ")[0]}` : ""}
+                </p>
+              </div>
+            );
+          }}
         />
       </div>
 
@@ -211,7 +276,7 @@ export default function AgendaPage() {
               </div>
             )}
           </div>
-          <Select label="Veterinário" value={form.medicoId} onChange={(e) => setForm({ ...form, medicoId: e.target.value })}>
+          <Select label="Veterinário(a)" value={form.medicoId} onChange={(e) => setForm({ ...form, medicoId: e.target.value })}>
             <option value="">Selecione...</option>
             {vets.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </Select>
@@ -257,9 +322,9 @@ export default function AgendaPage() {
               <p className="text-sm text-gray-600">Tutor: {selected.animal.tutor.nome}</p>
               <p className="text-sm text-gray-600">Tel: {selected.animal.tutor.telefone}</p>
             </div>
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 space-y-1">
               <p>📅 {new Date(selected.inicio).toLocaleString("pt-BR")}</p>
-              {selected.medico && <p>👨‍⚕️ {selected.medico.name}</p>}
+              {selected.medico && <p>👩‍⚕️ {selected.medico.name}</p>}
               {selected.obs && <p>📝 {selected.obs}</p>}
             </div>
             <div className="flex flex-wrap gap-2 pt-2 border-t">
