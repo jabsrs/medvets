@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Calendar, Users, PawPrint, ClipboardList,
   Package, ShoppingCart, TrendingUp, Syringe, BedDouble,
-  Settings, ChevronLeft, ChevronRight, Scissors, UserCog,
+  Settings, ChevronLeft, ChevronRight, Scissors, UserCog, ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -45,6 +45,7 @@ const grupos = [
     label: "Administração",
     items: [
       { href: "/usuarios", label: "Usuários", icon: UserCog },
+      { href: "/auditoria", label: "Auditoria", icon: ShieldCheck },
     ],
   },
 ];

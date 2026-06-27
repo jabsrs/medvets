@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { audit } from "./audit";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
@@ -52,9 +53,19 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (bloqueado) {
+            void audit({
+              userId: user.id, userName: user.name,
+              acao: "BLOQUEIO", entidade: "User", entidadeId: user.id,
+              descricao: `Conta bloqueada por ${LOCK_MINUTES} min após ${MAX_ATTEMPTS} tentativas falhas`,
+            });
             throw new Error(`Muitas tentativas. Conta bloqueada por ${LOCK_MINUTES} minutos.`);
           }
 
+          void audit({
+            userId: user.id, userName: user.name,
+            acao: "LOGIN_FALHOU", entidade: "User", entidadeId: user.id,
+            descricao: `Tentativa ${novasAttempts}/${MAX_ATTEMPTS} com senha incorreta`,
+          });
           const restantes = MAX_ATTEMPTS - novasAttempts;
           throw new Error(`Senha incorreta. ${restantes} tentativa(s) restante(s) antes do bloqueio.`);
         }
@@ -63,6 +74,12 @@ export const authOptions: NextAuthOptions = {
         await prisma.user.update({
           where: { id: user.id },
           data: { loginAttempts: 0, lockedUntil: null },
+        });
+
+        void audit({
+          userId: user.id, userName: user.name,
+          acao: "LOGIN", entidade: "User", entidadeId: user.id,
+          descricao: `Login bem-sucedido (${user.email})`,
         });
 
         return {

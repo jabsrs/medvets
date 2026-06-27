@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit, getIp } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -33,5 +34,13 @@ export async function POST(req: NextRequest) {
   if (data.pagamento) data.pagamento = new Date(data.pagamento);
 
   const lancamento = await prisma.lancamento.create({ data });
+
+  void audit({
+    userId: session.user?.id, userName: session.user?.name,
+    acao: "CREATE", entidade: "Lancamento", entidadeId: lancamento.id,
+    descricao: `Lançou ${lancamento.tipo === "RECEITA" ? "receita" : "despesa"}: "${lancamento.descricao}" — R$ ${lancamento.valor.toFixed(2)}`,
+    ip: getIp(req),
+  });
+
   return NextResponse.json(lancamento, { status: 201 });
 }

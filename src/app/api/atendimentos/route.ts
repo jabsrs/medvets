@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit, getIp } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -49,7 +50,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Registra peso se informado
   if (peso) {
     await prisma.pesoRegistro.create({
       data: { animalId: atendData.animalId, atendimentoId: atendimento.id, peso },
@@ -57,13 +57,19 @@ export async function POST(req: NextRequest) {
     await prisma.animal.update({ where: { id: atendData.animalId }, data: { peso } });
   }
 
-  // Atualiza agendamento para concluído
   if (atendData.agendamentoId) {
     await prisma.agendamento.update({
       where: { id: atendData.agendamentoId },
       data: { status: "CONCLUIDO" },
     });
   }
+
+  void audit({
+    userId: session.user?.id, userName: session.user?.name,
+    acao: "CREATE", entidade: "Atendimento", entidadeId: atendimento.id,
+    descricao: `Registrou atendimento de "${atendimento.animal?.nome ?? "—"}" (tutor: ${atendimento.animal?.tutor?.nome ?? "—"}) por ${atendimento.medico?.name ?? "—"}`,
+    ip: getIp(req),
+  });
 
   return NextResponse.json(atendimento, { status: 201 });
 }

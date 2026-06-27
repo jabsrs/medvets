@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit, getIp } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -41,5 +42,13 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (data.dataNasc) data.dataNasc = new Date(data.dataNasc);
   const animal = await prisma.animal.create({ data, include: { tutor: true } });
+
+  void audit({
+    userId: session.user?.id, userName: session.user?.name,
+    acao: "CREATE", entidade: "Animal", entidadeId: animal.id,
+    descricao: `Cadastrou animal "${animal.nome}" (tutor: ${animal.tutor?.nome ?? "—"})`,
+    ip: getIp(req),
+  });
+
   return NextResponse.json(animal, { status: 201 });
 }

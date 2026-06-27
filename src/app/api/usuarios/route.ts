@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { audit, getIp } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -37,10 +38,16 @@ export async function POST(req: NextRequest) {
   }
 
   const hashed = await bcrypt.hash(password, 10);
-
   const user = await prisma.user.create({
     data: { name, email, password: hashed, role: role || "ATENDENTE", crmv, specialty, phone },
     select: { id: true, name: true, email: true, role: true, crmv: true, specialty: true, phone: true, active: true },
+  });
+
+  void audit({
+    userId: session.user?.id, userName: session.user?.name,
+    acao: "CREATE_USER", entidade: "User", entidadeId: user.id,
+    descricao: `Criou usuário "${name}" (${email}) com perfil ${role || "ATENDENTE"}`,
+    ip: getIp(req),
   });
 
   return NextResponse.json(user, { status: 201 });
