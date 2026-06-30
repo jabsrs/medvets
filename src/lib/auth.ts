@@ -21,18 +21,48 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Senha", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const ip = (req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+          || (req?.headers?.["x-real-ip"] as string)
+          || null;
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
-        if (!user || !user.active) return null;
+        // Registra tentativa com e-mail inexistente
+        if (!user) {
+          void audit({
+            userId: null, userName: null,
+            acao: "LOGIN_FALHOU", entidade: "User", entidadeId: null,
+            descricao: `Tentativa com e-mail não cadastrado: ${credentials.email}`,
+            ip,
+          });
+          return null;
+        }
+
+        // Registra tentativa em conta inativa
+        if (!user.active) {
+          void audit({
+            userId: user.id, userName: user.name,
+            acao: "LOGIN_FALHOU", entidade: "User", entidadeId: user.id,
+            descricao: `Tentativa de acesso em conta inativa (${user.email})`,
+            ip,
+          });
+          return null;
+        }
 
         // Verifica bloqueio por tentativas excessivas
         if (user.lockedUntil && user.lockedUntil > new Date()) {
           const minutosRestantes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+          void audit({
+            userId: user.id, userName: user.name,
+            acao: "LOGIN_BLOQUEADO", entidade: "User", entidadeId: user.id,
+            descricao: `Tentativa em conta bloqueada — ${minutosRestantes} min restante(s)`,
+            ip,
+          });
           throw new Error(`Conta bloqueada. Tente novamente em ${minutosRestantes} minuto(s).`);
         }
 
@@ -57,6 +87,7 @@ export const authOptions: NextAuthOptions = {
               userId: user.id, userName: user.name,
               acao: "BLOQUEIO", entidade: "User", entidadeId: user.id,
               descricao: `Conta bloqueada por ${LOCK_MINUTES} min após ${MAX_ATTEMPTS} tentativas falhas`,
+              ip,
             });
             throw new Error(`Muitas tentativas. Conta bloqueada por ${LOCK_MINUTES} minutos.`);
           }
@@ -65,6 +96,7 @@ export const authOptions: NextAuthOptions = {
             userId: user.id, userName: user.name,
             acao: "LOGIN_FALHOU", entidade: "User", entidadeId: user.id,
             descricao: `Tentativa ${novasAttempts}/${MAX_ATTEMPTS} com senha incorreta`,
+            ip,
           });
           const restantes = MAX_ATTEMPTS - novasAttempts;
           throw new Error(`Senha incorreta. ${restantes} tentativa(s) restante(s) antes do bloqueio.`);
@@ -80,6 +112,7 @@ export const authOptions: NextAuthOptions = {
           userId: user.id, userName: user.name,
           acao: "LOGIN", entidade: "User", entidadeId: user.id,
           descricao: `Login bem-sucedido (${user.email})`,
+          ip,
         });
 
         return {
