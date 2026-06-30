@@ -20,9 +20,10 @@ model User {
   crmv          String?
   specialty     String?
   phone         String?
-  loginAttempts Int       @default(0)
-  lockedUntil   DateTime?
-  createdAt     DateTime  @default(now())
+  loginAttempts     Int       @default(0)
+  lockedUntil       DateTime?
+  mustChangePassword Boolean  @default(false)
+  createdAt         DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   agendamentos Agendamento[]   @relation("MedicoAgendamento")
@@ -91,6 +92,8 @@ model Animal {
   vacinas      VacinaAplicada[]
   internacoes  Internacao[]
   pesos        PesoRegistro[]
+  exames       ExameSolicitado[]
+  documentos   Documento[]
 
   @@map("animais")
 }
@@ -233,15 +236,18 @@ model Receita {
 
 model ExameSolicitado {
   id            String      @id @default(cuid())
-  atendimentoId String
+  animalId      String
+  atendimentoId String?
   nome          String
   tipo          TipoExame   @default(LABORATORIAL)
   status        StatusExame @default(SOLICITADO)
   resultado     String?
   arquivo       String?
+  arquivoChave  String?
   createdAt     DateTime    @default(now())
 
-  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  animal      Animal       @relation(fields: [animalId], references: [id])
+  atendimento Atendimento? @relation(fields: [atendimentoId], references: [id], onDelete: SetNull)
 
   @@map("exames_solicitados")
 }
@@ -260,13 +266,15 @@ enum StatusExame {
 
 model Documento {
   id            String   @id @default(cuid())
-  atendimentoId String
+  animalId      String
+  atendimentoId String?
   tipo          String
   titulo        String
-  conteudo      String
+  conteudo      String   @db.Text
   createdAt     DateTime @default(now())
 
-  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  animal      Animal       @relation(fields: [animalId], references: [id])
+  atendimento Atendimento? @relation(fields: [atendimentoId], references: [id], onDelete: SetNull)
 
   @@map("documentos")
 }

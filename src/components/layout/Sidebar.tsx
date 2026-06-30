@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Stethoscope, User, Calendar, ShoppingCart,
-  Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight,
+  Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight, BarChart2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -51,6 +51,7 @@ const nav: NavItem[] = [
       { href: "/internacao", label: "Internação" },
     ],
   },
+  { type: "link", href: "/relatorios", label: "Relatórios", icon: BarChart2 },
   { type: "divider" },
   {
     type: "section", label: "Configuração", icon: Settings,

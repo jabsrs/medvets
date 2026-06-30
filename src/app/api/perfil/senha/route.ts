@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
   if (!valid) return NextResponse.json({ error: "Senha atual incorreta" }, { status: 400 });
 
   const hash = await bcrypt.hash(novaSenha, 10);
-  await prisma.user.update({ where: { id: user.id }, data: { password: hash } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hash, mustChangePassword: false },
+  });
 
   return NextResponse.json({ ok: true });
 }
