@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Input";
 import { toast } from "sonner";
@@ -23,11 +22,6 @@ type Produto = {
   categoria?: { nome: string };
 };
 
-const tipoLabel: Record<string, string> = {
-  PRODUTO: "Produto",
-  SERVICO: "Serviço",
-  MEDICAMENTO: "Medicamento",
-};
 
 const emptyForm = {
   nome: "", tipo: "PRODUTO", preco: "", custo: "", estoque: "", estoqueMin: "0",
@@ -98,14 +92,14 @@ export default function EstoquePage() {
     finally { setSaving(false); }
   }
 
-  const totalBaixo = produtos.filter((p) => p.tipo !== "SERVICO" && p.estoque <= p.estoqueMin).length;
+  const totalBaixo = produtos.filter((p) => p.tipo !== "SERVICO" && p.estoqueMin > 0 && p.estoque <= p.estoqueMin).length;
 
   return (
     <div>
       <PageHeader
-        title="Estoque"
-        description={`${produtos.length} produtos cadastrados`}
-        actions={<Button onClick={openNew}><Plus size={16} /> Novo produto</Button>}
+        title="Produtos e Serviços"
+        description={`${produtos.length} itens cadastrados`}
+        actions={<Button onClick={openNew}><Plus size={16} /> Adicionar</Button>}
       />
 
       {totalBaixo > 0 && (
@@ -118,13 +112,13 @@ export default function EstoquePage() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto..."
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome..."
             className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-          <option value="">Todos os tipos</option>
-          <option value="PRODUTO">Produtos</option>
+          <option value="">Todos</option>
+          <option value="PRODUTO">Com estoque</option>
           <option value="MEDICAMENTO">Medicamentos</option>
           <option value="SERVICO">Serviços</option>
         </select>
@@ -134,11 +128,11 @@ export default function EstoquePage() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Produto</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Tipo</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Preço</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Nome</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Código</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Preço de venda</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Custo</th>
               <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Estoque</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Mínimo</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -149,27 +143,29 @@ export default function EstoquePage() {
               <tr><td colSpan={6} className="text-center py-12 text-gray-400"><Package size={32} className="mx-auto mb-2 opacity-40" /><p>Nenhum produto encontrado</p></td></tr>
             ) : (
               produtos.map((p) => {
-                const baixo = p.tipo !== "SERVICO" && p.estoque <= p.estoqueMin;
+                const temEstoque = p.tipo !== "SERVICO";
+                const baixo = temEstoque && p.estoqueMin > 0 && p.estoque <= p.estoqueMin;
                 return (
                   <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${baixo ? "bg-amber-50/30" : ""}`}>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{p.nome}</p>
-                      {p.codigo && <p className="text-xs text-gray-400">Cód: {p.codigo}</p>}
+                      <p className="font-medium text-gray-900 text-sm">{p.nome}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={p.tipo === "SERVICO" ? "purple" : p.tipo === "MEDICAMENTO" ? "info" : "default"}>
-                        {tipoLabel[p.tipo]}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(p.preco)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`text-sm font-semibold ${baixo ? "text-amber-600" : "text-gray-900"}`}>
-                        {p.tipo === "SERVICO" ? "—" : `${p.estoque} ${p.unidade}`}
-                      </span>
-                      {baixo && <AlertTriangle size={14} className="inline ml-1 text-amber-500" />}
+                    <td className="px-4 py-3 text-sm text-gray-500">{p.codigo ?? "—"}</td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                      {p.preco > 0 ? formatCurrency(p.preco) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-gray-500">
-                      {p.tipo === "SERVICO" ? "—" : `${p.estoqueMin} ${p.unidade}`}
+                      {p.custo ? formatCurrency(p.custo) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {temEstoque ? (
+                        <span className={`text-sm font-semibold ${baixo ? "text-amber-600" : "text-gray-900"}`}>
+                          {p.estoque} {p.unidade}
+                          {baixo && <AlertTriangle size={13} className="inline ml-1 text-amber-500" />}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => openEdit(p)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition">
