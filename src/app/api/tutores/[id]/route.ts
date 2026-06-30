@@ -8,22 +8,54 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const tutor = await prisma.tutor.findUnique({
-    where: { id: params.id },
-    include: {
-      animais: {
-        where: { ativo: true },
-        include: {
-          agendamentos: { orderBy: { inicio: "desc" }, take: 3 },
-          vacinas: { include: { vacina: true }, orderBy: { dataAplicacao: "desc" }, take: 3 },
+  const [tutor, statsVendasFechadas, statsVendasAbertas, primeiraVenda] = await Promise.all([
+    prisma.tutor.findUnique({
+      where: { id: params.id },
+      include: {
+        animais: {
+          include: {
+            agendamentos: { orderBy: { inicio: "asc" }, where: { inicio: { gte: new Date() } }, take: 5 },
+            vacinas: { include: { vacina: true }, orderBy: { dataAplicacao: "desc" }, take: 3 },
+          },
+          orderBy: { nome: "asc" },
         },
+        vendas: { orderBy: { createdAt: "desc" }, take: 5 },
       },
-      vendas: { orderBy: { createdAt: "desc" }, take: 5 },
-    },
-  });
+    }),
+    prisma.venda.aggregate({
+      where: { tutorId: params.id, status: "FECHADA" },
+      _sum: { total: true },
+      _avg: { total: true },
+      _max: { total: true, createdAt: true },
+      _count: true,
+    }),
+    prisma.venda.aggregate({
+      where: { tutorId: params.id, status: "ABERTA" },
+      _sum: { total: true },
+      _count: true,
+    }),
+    prisma.venda.findFirst({
+      where: { tutorId: params.id, status: "FECHADA" },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+  ]);
 
   if (!tutor) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(tutor);
+
+  return NextResponse.json({
+    ...tutor,
+    _stats: {
+      totalVendido: statsVendasFechadas._sum.total ?? 0,
+      ticketMedio: statsVendasFechadas._avg.total ?? 0,
+      maiorVenda: statsVendasFechadas._max.total ?? 0,
+      primeiraVenda: primeiraVenda?.createdAt ?? null,
+      ultimaVenda: statsVendasFechadas._max.createdAt ?? null,
+      qtdFechadas: statsVendasFechadas._count,
+      saldoAberto: statsVendasAbertas._sum.total ?? 0,
+      qtdAbertas: statsVendasAbertas._count,
+    },
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
