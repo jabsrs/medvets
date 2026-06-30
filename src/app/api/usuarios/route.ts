@@ -12,8 +12,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const role = searchParams.get("role");
 
+  // Quando filtrando por VETERINARIO, inclui ADMIN (sócios veterinários aparecem nos dropdowns)
+  const roleFilter = role === "VETERINARIO"
+    ? { role: { in: ["VETERINARIO", "ADMIN"] as ("ADMIN" | "VETERINARIO" | "ATENDENTE" | "FINANCEIRO")[] } }
+    : role ? { role: role as "ADMIN" | "VETERINARIO" | "ATENDENTE" | "FINANCEIRO" } : {};
+
   const users = await prisma.user.findMany({
-    where: { ...(role ? { role: role as "ADMIN" | "VETERINARIO" | "ATENDENTE" | "FINANCEIRO" } : {}) },
+    where: roleFilter,
     select: { id: true, name: true, email: true, role: true, crmv: true, specialty: true, phone: true, active: true },
     orderBy: { name: "asc" },
   });
