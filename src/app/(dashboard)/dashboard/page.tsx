@@ -368,18 +368,25 @@ export default async function DashboardPage() {
       </div>
 
       {/* Vacinas vencendo */}
-      {vacinasPraVencer.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Syringe size={18} className="text-amber-500" />
-              <h2 className="font-semibold text-gray-900">Vacinas vencendo nos próximos 30 dias</h2>
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Syringe size={18} className="text-amber-500" />
+            <h2 className="font-semibold text-gray-900">Vacinas vencendo nos próximos 30 dias</h2>
+            {vacinasPraVencer.length > 0 && (
               <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
                 {vacinasPraVencer.length}
               </span>
-            </div>
-            <Link href="/vacinas" className="text-sm text-teal-600 hover:underline">Ver todas →</Link>
+            )}
           </div>
+          <Link href="/vacinas" className="text-sm text-teal-600 hover:underline">Ver todas →</Link>
+        </div>
+        {vacinasPraVencer.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <Syringe size={28} className="mx-auto mb-2 opacity-40" />
+            <p className="text-sm">Nenhuma vacina vencendo nos próximos 30 dias</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {vacinasPraVencer.map(v => {
               const dias = diasParaVencer(v.dataVencimento!);
@@ -400,80 +407,99 @@ export default async function DashboardPage() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Contas vencidas + Aniversariantes */}
-      {(contasVencidas.length > 0 || aniversariantes.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Contas a pagar vencidas */}
-          {contasVencidas.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign size={16} className="text-red-400" />
-                  <h2 className="font-semibold text-gray-900">Contas vencidas</h2>
-                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">{contasVencidas.length}</span>
-                </div>
-                <Link href="/financeiro" className="text-sm text-teal-600 hover:underline">Ver financeiro →</Link>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {contasVencidas.map(c => {
-                  const atrasoDias = Math.floor((now.getTime() - new Date(c.vencimento).getTime()) / 86400000);
-                  return (
-                    <div key={c.id} className="flex items-center justify-between py-2.5">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-sm truncate">{c.descricao}</p>
-                        <p className="text-xs text-red-500">Venceu há {atrasoDias} dia(s)</p>
-                      </div>
-                      <span className="font-semibold text-sm text-red-600 ml-3 flex-shrink-0">
-                        {formatCurrency(c.valor)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Aniversariantes de hoje */}
-          {aniversariantes.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Cake size={16} className="text-pink-400" />
-                <h2 className="font-semibold text-gray-900">Aniversariantes de hoje</h2>
-                <span className="text-xs bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full font-medium">{aniversariantes.length}</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {aniversariantes.map(a => (
-                  <Link key={a.id} href={`/animais/${a.id}`}
-                    className="flex items-center gap-3 py-2.5 hover:bg-gray-50 -mx-1 px-1 rounded-lg transition group">
-                    <span className="text-xl">{especieEmoji[a.especie] ?? "🐾"}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm group-hover:text-teal-700 truncate">{a.nome}</p>
-                      <p className="text-xs text-gray-500 truncate">{a.tutorNome}</p>
-                    </div>
-                    <span className="text-lg">🎂</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Internações ativas (detalhes) */}
-      {internacoesAtivas.length > 0 && (
+        {/* Contas a pagar vencidas */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <BedDouble size={16} className="text-blue-400" />
-              <h2 className="font-semibold text-gray-900">Internações em andamento</h2>
-              <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">{internacoesAtivas.length}</span>
+              <DollarSign size={16} className="text-red-400" />
+              <h2 className="font-semibold text-gray-900">Contas vencidas</h2>
+              {contasVencidas.length > 0 && (
+                <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">{contasVencidas.length}</span>
+              )}
             </div>
-            <Link href="/internacao" className="text-sm text-teal-600 hover:underline">Ver internação →</Link>
+            <Link href="/financeiro" className="text-sm text-teal-600 hover:underline">Ver financeiro →</Link>
           </div>
+          {contasVencidas.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <DollarSign size={28} className="mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Nenhuma conta vencida</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {contasVencidas.map(c => {
+                const atrasoDias = Math.floor((now.getTime() - new Date(c.vencimento).getTime()) / 86400000);
+                return (
+                  <div key={c.id} className="flex items-center justify-between py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{c.descricao}</p>
+                      <p className="text-xs text-red-500">Venceu há {atrasoDias} dia(s)</p>
+                    </div>
+                    <span className="font-semibold text-sm text-red-600 ml-3 flex-shrink-0">
+                      {formatCurrency(c.valor)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Aniversariantes de hoje */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Cake size={16} className="text-pink-400" />
+            <h2 className="font-semibold text-gray-900">Aniversariantes de hoje</h2>
+            {aniversariantes.length > 0 && (
+              <span className="text-xs bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full font-medium">{aniversariantes.length}</span>
+            )}
+          </div>
+          {aniversariantes.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Cake size={28} className="mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Nenhum aniversariante hoje</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {aniversariantes.map(a => (
+                <Link key={a.id} href={`/animais/${a.id}`}
+                  className="flex items-center gap-3 py-2.5 hover:bg-gray-50 -mx-1 px-1 rounded-lg transition group">
+                  <span className="text-xl">{especieEmoji[a.especie] ?? "🐾"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm group-hover:text-teal-700 truncate">{a.nome}</p>
+                    <p className="text-xs text-gray-500 truncate">{a.tutorNome}</p>
+                  </div>
+                  <span className="text-lg">🎂</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Internações em andamento */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BedDouble size={16} className="text-blue-400" />
+            <h2 className="font-semibold text-gray-900">Internações em andamento</h2>
+            {internacoesAtivas.length > 0 && (
+              <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">{internacoesAtivas.length}</span>
+            )}
+          </div>
+          <Link href="/internacao" className="text-sm text-teal-600 hover:underline">Ver internação →</Link>
+        </div>
+        {internacoesAtivas.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <BedDouble size={28} className="mx-auto mb-2 opacity-40" />
+            <p className="text-sm">Nenhum animal internado</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {internacoesAtivas.map(i => (
               <Link key={i.id} href={`/animais/${i.animal.id}`}
@@ -489,8 +515,8 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
