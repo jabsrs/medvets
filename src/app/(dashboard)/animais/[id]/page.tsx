@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Stethoscope, Weight, Syringe, Calendar, Phone, Mail, Plus } from "lucide-react";
+import { Stethoscope, Weight, Syringe, Calendar, Phone, Mail, Plus, FlaskConical } from "lucide-react";
 import { especieEmoji, calcAge, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select, Textarea } from "@/components/ui/Input";
@@ -19,6 +19,7 @@ type Vacina = {
   id: string; dataAplicacao: string; dataVencimento?: string; lote?: string;
   vacina: { nome: string; fabricante?: string };
 };
+type CatalogoVacina = { id: string; nome: string; fabricante?: string; intervaloDias: number };
 type Peso = { id: string; data: string; peso: number };
 type Agendamento = { id: string; inicio: string; status: string; tipo?: { nome: string; cor: string } };
 type Animal = {
@@ -60,6 +61,15 @@ export default function AnimalDetailPage() {
   const [vets, setVets]             = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving]         = useState(false);
 
+  // Vacina modal
+  const [modalVacina, setModalVacina] = useState(false);
+  const [catalogo, setCatalogo]       = useState<CatalogoVacina[]>([]);
+  const [vacinaForm, setVacinaForm]   = useState({ vacinaId: "", nomeCustom: "", lote: "", dataAplicacao: new Date().toISOString().slice(0,10), dataVencimento: "" });
+
+  // Exame modal
+  const [modalExame, setModalExame] = useState(false);
+  const [exameForm, setExameForm]   = useState({ nome: "", tipo: "LABORATORIAL", obs: "" });
+
   const fetchAnimal = useCallback(async () => {
     const res = await fetch(`/api/animais/${id}`);
     if (res.ok) setAnimal(await res.json());
@@ -69,6 +79,7 @@ export default function AnimalDetailPage() {
   useEffect(() => { fetchAnimal(); }, [fetchAnimal]);
   useEffect(() => {
     fetch("/api/usuarios?role=VETERINARIO").then(r => r.json()).then(setVets);
+    fetch("/api/vacinas/catalogo").then(r => r.json()).then(setCatalogo);
   }, []);
 
   async function saveAtendimento() {
@@ -111,6 +122,58 @@ export default function AnimalDetailPage() {
       setModalPeso(false); setNovoPeso("");
       fetchAnimal();
     } catch { toast.error("Erro ao salvar peso"); }
+    finally { setSaving(false); }
+  }
+
+  async function saveVacina() {
+    const vacinaId = vacinaForm.vacinaId;
+    const nomeCustom = vacinaForm.nomeCustom.trim();
+    if (!vacinaId && !nomeCustom) { toast.error("Selecione ou informe a vacina"); return; }
+    if (!vacinaForm.dataAplicacao) { toast.error("Informe a data de aplicação"); return; }
+    setSaving(true);
+    try {
+      let finalVacinaId = vacinaId;
+      if (!vacinaId && nomeCustom) {
+        const res = await fetch("/api/vacinas/catalogo", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nome: nomeCustom }),
+        });
+        const nova = await res.json();
+        finalVacinaId = nova.id;
+      }
+      const res = await fetch("/api/vacinas", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          animalId: id,
+          vacinaId: finalVacinaId,
+          lote: vacinaForm.lote || null,
+          dataAplicacao: new Date(vacinaForm.dataAplicacao + "T12:00:00"),
+          dataVencimento: vacinaForm.dataVencimento ? new Date(vacinaForm.dataVencimento + "T12:00:00") : null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Vacina registrada!");
+      setModalVacina(false);
+      setVacinaForm({ vacinaId: "", nomeCustom: "", lote: "", dataAplicacao: new Date().toISOString().slice(0,10), dataVencimento: "" });
+      fetchAnimal();
+      fetch("/api/vacinas/catalogo").then(r => r.json()).then(setCatalogo);
+    } catch { toast.error("Erro ao salvar vacina"); }
+    finally { setSaving(false); }
+  }
+
+  async function saveExame() {
+    if (!exameForm.nome.trim()) { toast.error("Informe o nome do exame"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/exames", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ animalId: id, nome: exameForm.nome, tipo: exameForm.tipo, obs: exameForm.obs || null }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Exame solicitado!");
+      setModalExame(false);
+      setExameForm({ nome: "", tipo: "LABORATORIAL", obs: "" });
+    } catch { toast.error("Erro ao salvar exame"); }
     finally { setSaving(false); }
   }
 
@@ -246,8 +309,8 @@ export default function AnimalDetailPage() {
             {[
               { label: "Atendimento", color: "#0d9488", icon: "🩺", action: () => setModalAtend(true) },
               { label: "Peso",        color: "#d97706", icon: "⚖️",  action: () => setModalPeso(true) },
-              { label: "Vacina",      color: "#7c3aed", icon: "💉",  action: () => {} },
-              { label: "Exame",       color: "#dc2626", icon: "🔬",  action: () => {} },
+              { label: "Vacina",      color: "#7c3aed", icon: "💉",  action: () => { setTab("vacinas"); setModalVacina(true); } },
+              { label: "Exame",       color: "#dc2626", icon: "🔬",  action: () => setModalExame(true) },
             ].map(btn => (
               <button key={btn.label} onClick={btn.action}
                 className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl text-white text-sm font-medium hover:opacity-90 transition shadow-sm"
@@ -506,6 +569,57 @@ export default function AnimalDetailPage() {
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
           <Button variant="outline" onClick={() => setModalPeso(false)}>Cancelar</Button>
           <Button onClick={savePeso} loading={saving}>Salvar</Button>
+        </div>
+      </Modal>
+
+      {/* Modal: Registrar vacina */}
+      <Modal open={modalVacina} onClose={() => setModalVacina(false)} title={`Registrar vacina — ${animal.nome}`} size="md">
+        <div className="space-y-4">
+          <div>
+            <Select label="Vacina do catálogo" value={vacinaForm.vacinaId}
+              onChange={e => setVacinaForm({ ...vacinaForm, vacinaId: e.target.value, nomeCustom: "" })}>
+              <option value="">— Selecione ou informe abaixo —</option>
+              {catalogo.map(v => <option key={v.id} value={v.id}>{v.nome}{v.fabricante ? ` (${v.fabricante})` : ""}</option>)}
+            </Select>
+            {!vacinaForm.vacinaId && (
+              <Input className="mt-2" placeholder="Ou informe o nome da vacina..." value={vacinaForm.nomeCustom}
+                onChange={e => setVacinaForm({ ...vacinaForm, nomeCustom: e.target.value })} />
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Data de aplicação *" type="date" value={vacinaForm.dataAplicacao}
+              onChange={e => setVacinaForm({ ...vacinaForm, dataAplicacao: e.target.value })} />
+            <Input label="Data de vencimento" type="date" value={vacinaForm.dataVencimento}
+              onChange={e => setVacinaForm({ ...vacinaForm, dataVencimento: e.target.value })} />
+          </div>
+          <Input label="Lote" value={vacinaForm.lote}
+            onChange={e => setVacinaForm({ ...vacinaForm, lote: e.target.value })} placeholder="Ex: A12345" />
+        </div>
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+          <Button variant="outline" onClick={() => setModalVacina(false)}>Cancelar</Button>
+          <Button onClick={saveVacina} loading={saving}><Syringe size={15} /> Registrar</Button>
+        </div>
+      </Modal>
+
+      {/* Modal: Solicitar exame */}
+      <Modal open={modalExame} onClose={() => setModalExame(false)} title={`Solicitar exame — ${animal.nome}`} size="md">
+        <div className="space-y-4">
+          <Input label="Nome do exame *" value={exameForm.nome}
+            onChange={e => setExameForm({ ...exameForm, nome: e.target.value })}
+            placeholder="Ex: Hemograma completo, Raio-X tórax..." autoFocus />
+          <Select label="Tipo" value={exameForm.tipo}
+            onChange={e => setExameForm({ ...exameForm, tipo: e.target.value })}>
+            <option value="LABORATORIAL">Laboratorial</option>
+            <option value="IMAGEM">Imagem</option>
+            <option value="OUTRO">Outro</option>
+          </Select>
+          <Textarea label="Observações" value={exameForm.obs}
+            onChange={e => setExameForm({ ...exameForm, obs: e.target.value })}
+            placeholder="Instruções ou informações adicionais..." rows={3} />
+        </div>
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+          <Button variant="outline" onClick={() => setModalExame(false)}>Cancelar</Button>
+          <Button onClick={saveExame} loading={saving}><FlaskConical size={15} /> Solicitar</Button>
         </div>
       </Modal>
     </div>
