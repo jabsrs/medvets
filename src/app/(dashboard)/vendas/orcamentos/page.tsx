@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Search, FileText, Users, X, Minus } from "lucide-react";
+import { Plus, Edit, Trash2, Search, FileText, Users, X, Minus, Printer } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -29,6 +29,14 @@ export default function OrcamentosPage() {
   const [produtos, setProdutos]       = useState<Produto[]>([]);
   const [buscaProd, setBuscaProd]     = useState("");
   const [saving, setSaving]           = useState(false);
+
+  // Quick print modal
+  const [modalImprimir, setModalImprimir] = useState(false);
+  const [printModelo, setPrintModelo]     = useState<Modelo | null>(null);
+  const [printNome, setPrintNome]         = useState("");
+  const [printObs, setPrintObs]           = useState("");
+  const [printValidade, setPrintValidade] = useState("");
+  const [printItens, setPrintItens]       = useState<{ produtoId: string; quantidade: number; produto: { nome: string; preco: number } }[]>([]);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/orcamentos");
@@ -73,6 +81,82 @@ export default function OrcamentosPage() {
   }
 
   function removeItem(idx: number) { setItens(prev => prev.filter((_, i) => i !== idx)); }
+
+  function abrirImpressao(m: Modelo) {
+    const validade = new Date();
+    validade.setDate(validade.getDate() + m.validadeDias);
+    setPrintModelo(m);
+    setPrintNome("");
+    setPrintObs(m.obs ?? "");
+    setPrintValidade(validade.toISOString().slice(0, 10));
+    setPrintItens(m.itens.map(i => ({ ...i })));
+    setModalImprimir(true);
+  }
+
+  function gerarImpressao() {
+    if (!printModelo) return;
+    const linhas = printItens.map(i => {
+      const sub = i.produto.preco * i.quantidade;
+      return `<tr style="border-bottom:1px solid #eee">
+        <td style="padding:7px 10px">${i.produto.nome}</td>
+        <td style="padding:7px 10px;text-align:center">${i.quantidade}</td>
+        <td style="padding:7px 10px;text-align:right">R$ ${i.produto.preco.toFixed(2)}</td>
+        <td style="padding:7px 10px;text-align:right">R$ ${sub.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    const total = printItens.reduce((s, i) => s + i.produto.preco * i.quantidade, 0);
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Orçamento — MedVets</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:40px;color:#222;font-size:14px}
+      h1{font-size:22px;margin:0;color:#0d9488}
+      table{width:100%;border-collapse:collapse;margin-top:20px}
+      th{background:#f0fafa;padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #0d9488}
+      .total-row td{font-weight:bold;padding:10px;background:#f9f9f9;border-top:2px solid #ddd}
+      .footer{margin-top:40px;font-size:12px;color:#888;border-top:1px solid #eee;padding-top:16px}
+      .assinatura{margin-top:60px;border-top:1px solid #aaa;width:260px;padding-top:6px;font-size:12px;color:#555}
+      @media print{.no-print{display:none}body{margin:20px}}
+    </style></head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+      <div>
+        <h1>MedVets</h1>
+        <p style="color:#666;margin:4px 0;font-size:13px">Clínica Veterinária · CRMV/SC 14192</p>
+      </div>
+      <div style="text-align:right;font-size:13px;color:#555">
+        <p style="margin:2px 0"><strong>Data:</strong> ${new Date().toLocaleDateString("pt-BR")}</p>
+        <p style="margin:2px 0"><strong>Válido até:</strong> ${new Date(printValidade + "T12:00:00").toLocaleDateString("pt-BR")}</p>
+      </div>
+    </div>
+    <hr style="border:none;border-top:2px solid #0d9488;margin-bottom:20px">
+    <p style="margin:4px 0"><strong>Orçamento para:</strong> ${printNome || "—"}</p>
+    ${printObs ? `<p style="margin:4px 0;color:#555"><strong>Observações:</strong> ${printObs}</p>` : ""}
+    <table>
+      <thead><tr>
+        <th>Produto / Serviço</th>
+        <th style="text-align:center">Qtd</th>
+        <th style="text-align:right">Preço unit.</th>
+        <th style="text-align:right">Subtotal</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+      <tfoot><tr class="total-row">
+        <td colspan="3" style="text-align:right">Total</td>
+        <td style="text-align:right;color:#0d9488;font-size:16px">R$ ${total.toFixed(2)}</td>
+      </tr></tfoot>
+    </table>
+    <div class="footer">
+      <p>Este orçamento não constitui nota fiscal.</p>
+      <p>Em caso de dúvidas, entre em contato conosco.</p>
+    </div>
+    <div class="assinatura">
+      <p>Responsável técnico</p>
+    </div>
+    <div class="no-print" style="margin-top:32px;text-align:center">
+      <button onclick="window.print()" style="padding:12px 28px;background:#0d9488;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600">🖨️ Imprimir</button>
+    </div>
+    </body></html>`;
+    const win = window.open("", "_blank", "width=820,height=680");
+    if (win) { win.document.write(html); win.document.close(); }
+    setModalImprimir(false);
+  }
 
   async function save() {
     if (!form.nome) { toast.error("Nome obrigatório"); return; }
@@ -121,6 +205,11 @@ export default function OrcamentosPage() {
         </td>
         <td className="px-5 py-3.5 text-right">
           <div className="flex items-center justify-end gap-1">
+            <button onClick={() => abrirImpressao(m)}
+              title="Gerar orçamento rápido"
+              className="p-1.5 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition">
+              <Printer size={15} />
+            </button>
             {owner && (
               <>
                 <button onClick={() => openEdit(m)} className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition">
@@ -214,6 +303,101 @@ export default function OrcamentosPage() {
           </div>
         </>
       )}
+
+      {/* Modal: Orçamento rápido */}
+      <Modal open={modalImprimir} onClose={() => setModalImprimir(false)}
+        title={`Orçamento rápido — ${printModelo?.nome}`} size="lg">
+        {printModelo && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do cliente</label>
+                <input type="text" value={printNome} onChange={e => setPrintNome(e.target.value)}
+                  placeholder="Ex: Maria da Silva (pode não estar no sistema)"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Válido até</label>
+                <input type="date" value={printValidade} onChange={e => setPrintValidade(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+              </div>
+            </div>
+
+            {/* Itens editáveis */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Produto / Serviço</th>
+                    <th className="text-center px-4 py-2 text-xs font-semibold text-gray-500 w-28">Qtd</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Unit.</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {printItens.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2.5 text-gray-800">{item.produto.nome}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => {
+                            const u = [...printItens];
+                            if (u[idx].quantidade <= 1) { setPrintItens(u.filter((_, i) => i !== idx)); return; }
+                            u[idx] = { ...u[idx], quantidade: u[idx].quantidade - 1 };
+                            setPrintItens(u);
+                          }} className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition">
+                            <Minus size={11} />
+                          </button>
+                          <input type="number" min={1} value={item.quantidade}
+                            onChange={e => {
+                              const u = [...printItens];
+                              u[idx] = { ...u[idx], quantidade: Math.max(1, Number(e.target.value)) };
+                              setPrintItens(u);
+                            }}
+                            className="w-10 text-center border border-gray-200 rounded py-0.5 text-sm" />
+                          <button onClick={() => {
+                            const u = [...printItens];
+                            u[idx] = { ...u[idx], quantidade: u[idx].quantidade + 1 };
+                            setPrintItens(u);
+                          }} className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition">
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-600">{formatCurrency(item.produto.preco)}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-gray-900">
+                        {formatCurrency(item.produto.preco * item.quantidade)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t border-gray-200">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2.5 text-sm font-semibold text-gray-700 text-right">Total</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-teal-700">
+                      {formatCurrency(printItens.reduce((s, i) => s + i.produto.preco * i.quantidade, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea value={printObs} onChange={e => setPrintObs(e.target.value)} rows={2}
+                placeholder="Condições, prazo, observações..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none" />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setModalImprimir(false)}>Cancelar</Button>
+              <Button onClick={gerarImpressao} className="bg-cyan-600 hover:bg-cyan-700">
+                <Printer size={14} /> Gerar impressão
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal criar/editar */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}
