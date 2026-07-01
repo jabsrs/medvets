@@ -26,10 +26,11 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  agendamentos Agendamento[]   @relation("MedicoAgendamento")
-  atendimentos Atendimento[]   @relation("MedicoAtendimento")
-  comissoes    Comissao[]
-  notificacoes Notificacao[]
+  agendamentos     Agendamento[]    @relation("MedicoAgendamento")
+  atendimentos     Atendimento[]    @relation("MedicoAtendimento")
+  comissoes        Comissao[]
+  notificacoes     Notificacao[]
+  modelosOrcamento ModeloOrcamento[]
 
   @@map("users")
 }
@@ -381,10 +382,11 @@ model Produto {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  categoria     Categoria?   @relation(fields: [categoriaId], references: [id])
+  categoria     Categoria?            @relation(fields: [categoriaId], references: [id])
   itensVenda    ItemVenda[]
   movimentacoes MovEstoque[]
   comissoes     Comissao[]
+  itensModelo   ModeloOrcamentoItem[]
 
   @@map("produtos")
 }
@@ -564,6 +566,37 @@ enum TipoNotif {
   ALERTA
   SUCESSO
   ERRO
+}
+
+// ─── Modelos de Orçamento ────────────────────────────────────────────────────
+
+model ModeloOrcamento {
+  id            String   @id @default(cuid())
+  userId        String
+  nome          String
+  validadeDias  Int      @default(3)
+  compartilhado Boolean  @default(true)
+  ativo         Boolean  @default(true)
+  obs           String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user  User                  @relation(fields: [userId], references: [id])
+  itens ModeloOrcamentoItem[]
+
+  @@map("modelos_orcamento")
+}
+
+model ModeloOrcamentoItem {
+  id         String @id @default(cuid())
+  modeloId   String
+  produtoId  String
+  quantidade Float  @default(1)
+
+  modelo  ModeloOrcamento @relation(fields: [modeloId], references: [id], onDelete: Cascade)
+  produto Produto         @relation(fields: [produtoId], references: [id])
+
+  @@map("modelos_orcamento_itens")
 }
 
 // ─── Configurações da Clínica ─────────────────────────────────────────────────

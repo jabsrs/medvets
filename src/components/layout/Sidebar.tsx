@@ -31,6 +31,7 @@ const nav: NavItem[] = [
     type: "section", label: "Vendas", icon: ShoppingCart,
     children: [
       { href: "/vendas", label: "Ponto de venda" },
+      { href: "/vendas/orcamentos", label: "Modelos de orçamento" },
       { href: "/vendas/saldo-clientes", label: "Saldo dos clientes" },
       { href: "/vendas/ranking-clientes", label: "Ranking de clientes" },
     ],
