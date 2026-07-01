@@ -85,9 +85,9 @@ export function Sidebar() {
             <Image
               src="/logo.png"
               alt="MedVets"
-              width={36}
-              height={36}
-              className="rounded-full object-cover flex-shrink-0"
+              width={32}
+              height={48}
+              className="object-contain flex-shrink-0"
             />
             <span className="font-bold text-sm leading-tight">MedVets<br/>
               <span className="text-[10px] font-normal text-gray-400">Clínica Veterinária</span>
@@ -98,9 +98,9 @@ export function Sidebar() {
           <Image
             src="/logo.png"
             alt="MedVets"
-            width={32}
-            height={32}
-            className="rounded-full object-cover mx-auto"
+            width={28}
+            height={42}
+            className="object-contain mx-auto"
           />
         )}
         <button
