@@ -6,7 +6,17 @@ import { prisma } from "@/lib/prisma";
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const data = await req.json();
-  const produto = await prisma.produto.update({ where: { id: params.id }, data, include: { categoria: true } });
+  if (data.grupoProdutoId === "") data.grupoProdutoId = null;
+
+  const produto = await prisma.produto.update({
+    where: { id: params.id },
+    data,
+    include: {
+      categoria:    true,
+      grupoProduto: { select: { id: true, nome: true, cor: true, parentId: true } },
+    },
+  });
   return NextResponse.json(produto);
 }

@@ -420,6 +420,23 @@ model CompraItem {
   @@map("compras_itens")
 }
 
+// ─── Grupos de Produtos ───────────────────────────────────────────────────────
+
+model GrupoProduto {
+  id       String  @id @default(cuid())
+  nome     String
+  parentId String?
+  cor      String  @default("#6B7280")
+  ativo    Boolean @default(true)
+  ordem    Int     @default(0)
+
+  parent   GrupoProduto?  @relation("SubGrupos", fields: [parentId], references: [id])
+  filhos   GrupoProduto[] @relation("SubGrupos")
+  produtos Produto[]
+
+  @@map("grupos_produto")
+}
+
 // ─── Produtos e Estoque ───────────────────────────────────────────────────────
 
 model Categoria {
@@ -438,9 +455,10 @@ enum TipoCategoria {
 }
 
 model Produto {
-  id          String      @id @default(cuid())
-  categoriaId String?
-  codigo      String?     @unique
+  id             String  @id @default(cuid())
+  categoriaId    String?
+  grupoProdutoId String?
+  codigo         String? @unique
   nome        String
   tipo        TipoProduto @default(PRODUTO)
   descricao   String?
@@ -455,6 +473,7 @@ model Produto {
   updatedAt   DateTime    @updatedAt
 
   categoria      Categoria?            @relation(fields: [categoriaId], references: [id])
+  grupoProduto   GrupoProduto?         @relation(fields: [grupoProdutoId], references: [id])
   itensVenda     ItemVenda[]
   movimentacoes  MovEstoque[]
   comissoes      Comissao[]
