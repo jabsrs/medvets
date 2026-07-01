@@ -144,13 +144,20 @@ export default function ComprasPage() {
 
   // Import XML
   const [modalImport, setModalImport]   = useState(false);
-  const [step, setStep]                 = useState<"upload" | "preview" | "saving">("upload");
+  const [step, setStep]                 = useState<"upload" | "preview" | "pagamento" | "saving">("upload");
   const fileRef                         = useRef<HTMLInputElement>(null);
   const [fornecedorPreview, setFornecedorPreview] = useState<Partial<Fornecedor>>({});
   const [nfPreview, setNfPreview]       = useState({ nf: "", emissaoNf: "", natureza: "", chaveNfe: "", total: 0 });
   const [dataEntrada, setDataEntrada]   = useState(new Date().toISOString().slice(0, 10));
   const [itensImport, setItensImport]   = useState<ItemImport[]>([]);
   const [expandedItems, setExpandedItems] = useState(true);
+
+  // Payment step
+  type Parcela = { num: number; vencimento: string; valor: number };
+  const [formaPagto, setFormaPagto]     = useState("BOLETO");
+  const [numParcelas, setNumParcelas]   = useState(1);
+  const [dataPrimeira, setDataPrimeira] = useState("");
+  const [parcelas, setParcelas]         = useState<Parcela[]>([]);
 
   // Cadastrar novo produto (dentro do import)
   const [modalNovoIdx, setModalNovoIdx] = useState<number | null>(null);
@@ -318,15 +325,61 @@ export default function ComprasPage() {
     finally { setSavingNovo(false); }
   }
 
+  // ── Payment step helpers ─────────────────────────────────────────────────────
+
+  function calcParcelas(num: number, primeira: string, total: number): Parcela[] {
+    if (!primeira || num < 1) return [];
+    const base   = parseFloat((total / num).toFixed(2));
+    const resto  = parseFloat((total - base * (num - 1)).toFixed(2));
+    return Array.from({ length: num }, (_, i) => {
+      const d = new Date(primeira + "T12:00:00");
+      d.setMonth(d.getMonth() + i);
+      return {
+        num: i + 1,
+        vencimento: d.toISOString().slice(0, 10),
+        valor: i === num - 1 ? resto : base,
+      };
+    });
+  }
+
+  function handleNumParcelas(n: number) {
+    setNumParcelas(n);
+    setParcelas(calcParcelas(n, dataPrimeira, nfPreview.total));
+  }
+
+  function handleDataPrimeira(d: string) {
+    setDataPrimeira(d);
+    setParcelas(calcParcelas(numParcelas, d, nfPreview.total));
+  }
+
+  function updateParcelaData(idx: number, novaData: string) {
+    setParcelas(prev => prev.map((p, i) => i === idx ? { ...p, vencimento: novaData } : p));
+  }
+
+  function openPagamento() {
+    // Default: 30 days from today
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    const dp = d.toISOString().slice(0, 10);
+    setFormaPagto("BOLETO");
+    setNumParcelas(1);
+    setDataPrimeira(dp);
+    setParcelas(calcParcelas(1, dp, nfPreview.total));
+    setStep("pagamento");
+  }
+
   // ── Save compra ─────────────────────────────────────────────────────────────
 
-  async function salvarCompra() {
+  function confirmarProdutos() {
     const novos = itensImport.filter(i => i.estado === "novo");
     if (novos.length > 0) {
       const nomes = novos.map(i => i.nomeProd).join(", ");
-      if (!confirm(`Ainda há ${novos.length} produto(s) não cadastrado(s):\n${nomes}\n\nDeseja continuar sem cadastrá-los? (não serão vinculados ao estoque)`)) return;
+      if (!confirm(`Ainda há ${novos.length} produto(s) não cadastrado(s):\n${nomes}\n\nDeseja continuar sem cadastrá-los?`)) return;
     }
+    openPagamento();
+  }
 
+  async function salvarCompra() {
     setStep("saving");
     try {
       let fornecedorId: string | undefined;
@@ -341,12 +394,14 @@ export default function ComprasPage() {
 
       const payload = {
         fornecedorId,
-        nf:          nfPreview.nf,
-        chaveNfe:    nfPreview.chaveNfe,
-        emissaoNf:   nfPreview.emissaoNf || null,
+        nf:             nfPreview.nf,
+        chaveNfe:       nfPreview.chaveNfe,
+        emissaoNf:      nfPreview.emissaoNf || null,
         dataEntrada,
-        natureza:    nfPreview.natureza,
-        total:       nfPreview.total,
+        natureza:       nfPreview.natureza,
+        total:          nfPreview.total,
+        formaPagamento: formaPagto,
+        parcelas:       parcelas,
         itens: itensImport.map(i => ({
           produtoId:  i.produtoId || null,
           codigoProd: i.codigoProd,
@@ -563,7 +618,7 @@ export default function ComprasPage() {
         )}
 
         {/* STEP 2: preview */}
-        {(step === "preview" || step === "saving") && (
+        {step === "preview" && (
           <div className="space-y-5">
             {/* NF summary */}
             <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 text-sm">
@@ -784,8 +839,131 @@ export default function ComprasPage() {
 
             <div className="flex justify-between items-center pt-3 border-t">
               <button onClick={() => setStep("upload")} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+              <Button onClick={confirmarProdutos}>
+                Próximo: Forma de pagamento →
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: pagamento */}
+        {(step === "pagamento" || step === "saving") && (
+          <div className="space-y-5">
+            {/* NF summary compact */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
+              <span className="text-gray-600">
+                {fornecedorPreview.nome} — NF {nfPreview.nf || "s/n"}
+              </span>
+              <span className="font-bold text-teal-700 text-base">
+                Total: R$ {nfPreview.total.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Forma de pagamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Forma de pagamento</label>
+                <select value={formaPagto} onChange={e => setFormaPagto(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="BOLETO">Boleto</option>
+                  <option value="PIX">PIX</option>
+                  <option value="TRANSFERENCIA">Transferência</option>
+                  <option value="CARTAO_DEBITO">Cartão Débito</option>
+                  <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="CONVENIO">Convênio</option>
+                </select>
+              </div>
+
+              {/* Número de parcelas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
+                <select value={numParcelas} onChange={e => handleNumParcelas(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n}x {nfPreview.total > 0 ? `— R$ ${(nfPreview.total / n).toFixed(2)}` : ""}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Data da 1ª parcela */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vencimento 1ª parcela</label>
+                <input type="date" value={dataPrimeira} onChange={e => handleDataPrimeira(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+            </div>
+
+            {/* Parcelas preview table */}
+            {parcelas.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr className="text-xs text-gray-500 uppercase">
+                      <th className="text-center px-4 py-2.5">Parcela</th>
+                      <th className="text-left px-4 py-2.5">Vencimento</th>
+                      <th className="text-right px-4 py-2.5">Valor</th>
+                      <th className="text-center px-4 py-2.5 w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {parcelas.map((p, idx) => {
+                      const d = new Date(p.vencimento + "T12:00:00");
+                      const isAmanha = (() => {
+                        const am = new Date(); am.setDate(am.getDate() + 1);
+                        return d.toDateString() === am.toDateString();
+                      })();
+                      const isHoje = d.toDateString() === new Date().toDateString();
+                      const isVencida = d < new Date() && !isHoje;
+                      return (
+                        <tr key={idx} className={isAmanha ? "bg-amber-50" : isHoje ? "bg-orange-50" : isVencida ? "bg-red-50" : ""}>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                              {p.num}/{numParcelas}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <input type="date" value={p.vencimento}
+                              onChange={e => updateParcelaData(idx, e.target.value)}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            {isAmanha && <span className="ml-2 text-xs text-amber-600 font-medium">⚠ Vence amanhã!</span>}
+                            {isHoje && <span className="ml-2 text-xs text-orange-600 font-medium">⚠ Vence hoje!</span>}
+                            {isVencida && <span className="ml-2 text-xs text-red-600 font-medium">⚠ Data no passado</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
+                            R$ {p.valor.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-2.5 text-center text-xs text-gray-400">
+                            {p.valor > 0 ? "" : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-teal-50 border-t border-gray-200">
+                    <tr>
+                      <td colSpan={2} className="px-4 py-2.5 text-sm font-semibold text-teal-800">
+                        Total em {numParcelas}x {formaPagto.replace("_", " ").toLowerCase()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold text-teal-700 text-base">
+                        R$ {parcelas.reduce((s, p) => s + p.valor, 0).toFixed(2)}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800 flex items-center gap-2">
+              <span>🔔</span>
+              <span>A secretária receberá um alerta no sino 1 dia antes de cada vencimento.</span>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t">
+              <button onClick={() => setStep("preview")} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
               <Button onClick={salvarCompra} loading={step === "saving"}>
-                Confirmar compra e atualizar estoque
+                Confirmar compra e registrar pagamentos
               </Button>
             </div>
           </div>

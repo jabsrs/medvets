@@ -391,9 +391,10 @@ model Compra {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  fornecedor Fornecedor?  @relation(fields: [fornecedorId], references: [id])
-  user       User         @relation(fields: [userId], references: [id])
-  itens      CompraItem[]
+  fornecedor  Fornecedor?  @relation(fields: [fornecedorId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  itens       CompraItem[]
+  lancamentos Lancamento[]
 
   @@map("compras")
 }
@@ -554,16 +555,22 @@ enum FormaPagamento {
 // ─── Financeiro ───────────────────────────────────────────────────────────────
 
 model Lancamento {
-  id          String         @id @default(cuid())
-  tipo        TipoLancamento
-  descricao   String
-  valor       Float
-  vencimento  DateTime
-  pagamento   DateTime?
-  status      StatusLanc     @default(PENDENTE)
-  categoria   String?
-  obs         String?
-  createdAt   DateTime       @default(now())
+  id             String         @id @default(cuid())
+  tipo           TipoLancamento
+  descricao      String
+  valor          Float
+  vencimento     DateTime
+  pagamento      DateTime?
+  status         StatusLanc     @default(PENDENTE)
+  categoria      String?
+  formaPagamento String?
+  compraId       String?
+  parcelaNum     Int?
+  totalParcelas  Int?
+  obs            String?
+  createdAt      DateTime       @default(now())
+
+  compra Compra? @relation(fields: [compraId], references: [id])
 
   @@map("lancamentos")
 }

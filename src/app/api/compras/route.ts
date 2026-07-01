@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { fornecedorId, nf, chaveNfe, emissaoNf, dataEntrada, natureza, total, obs, itens } = await req.json();
+  const { fornecedorId, nf, chaveNfe, emissaoNf, dataEntrada, natureza, total, obs, itens, parcelas, formaPagamento } = await req.json();
 
   // Create compra with items
   const compra = await prisma.compra.create({
@@ -99,6 +99,57 @@ export async function POST(req: NextRequest) {
         motivo: `Compra NF ${nf ?? "s/n"} — ${compra.id.slice(-6)}`,
       },
     });
+  }
+
+  // Create payment installments (Lancamento) if provided
+  if (parcelas && Array.isArray(parcelas) && parcelas.length > 0) {
+    const fornecedorNome = compra.fornecedor?.nome ?? "Fornecedor";
+    const lancamentoData = (parcelas as { num: number; vencimento: string; valor: number }[]).map(p => ({
+      tipo: "DESPESA" as const,
+      descricao: `NF ${nf ?? "s/n"} — ${fornecedorNome}${parcelas.length > 1 ? ` — Parcela ${p.num}/${parcelas.length}` : ""}`,
+      valor: p.valor,
+      vencimento: new Date(p.vencimento + "T12:00:00"),
+      status: "PENDENTE" as const,
+      categoria: "Compra",
+      formaPagamento: formaPagamento ?? null,
+      compraId: compra.id,
+      parcelaNum: p.num,
+      totalParcelas: parcelas.length,
+    }));
+
+    await prisma.lancamento.createMany({ data: lancamentoData });
+
+    // Create ALERTA notifications for all ATENDENTE users for installments due tomorrow
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const amanhaInicio = new Date(amanha.getFullYear(), amanha.getMonth(), amanha.getDate());
+    const amanhaFim    = new Date(amanha.getFullYear(), amanha.getMonth(), amanha.getDate(), 23, 59, 59);
+
+    const parcelasAmanha = (parcelas as { num: number; vencimento: string; valor: number }[]).filter(p => {
+      const d = new Date(p.vencimento + "T12:00:00");
+      return d >= amanhaInicio && d <= amanhaFim;
+    });
+
+    if (parcelasAmanha.length > 0) {
+      const atendentes = await prisma.user.findMany({
+        where: { role: { in: ["ATENDENTE", "ADMIN"] }, active: true },
+        select: { id: true },
+      });
+
+      const notifData = atendentes.flatMap(u =>
+        parcelasAmanha.map(p => ({
+          userId: u.id,
+          titulo: "Pagamento vence amanhã",
+          mensagem: `NF ${nf ?? "s/n"} — ${fornecedorNome}${parcelas.length > 1 ? ` (Parc. ${p.num}/${parcelas.length})` : ""} — R$ ${p.valor.toFixed(2)}`,
+          tipo: "ALERTA" as const,
+          link: "/financeiro",
+        }))
+      );
+
+      if (notifData.length > 0) {
+        await prisma.notificacao.createMany({ data: notifData });
+      }
+    }
   }
 
   return NextResponse.json(compra, { status: 201 });

@@ -6,6 +6,8 @@ export async function gerarNotificacoes(userId: string) {
   const em90diasAtras = new Date(Date.now() - 90 * 86400000);
   const inicioDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   const fimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59);
+  const amanha = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 1);
+  const amanhaFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 1, 23, 59, 59);
 
   // Apaga notificações não lidas (serão recriadas com estado atual)
   await prisma.notificacao.deleteMany({ where: { userId, lida: false } });
@@ -18,7 +20,7 @@ export async function gerarNotificacoes(userId: string) {
     link: string;
   }> = [];
 
-  const [vacinasVencendo, vacinasVencidas, retornosPendentes, internacoesAtivas, agendamentosHoje] =
+  const [vacinasVencendo, vacinasVencidas, retornosPendentes, internacoesAtivas, agendamentosHoje, lancamentosAmanha, lancamentosHoje, lancamentosVencidos] =
     await Promise.all([
       // Vacinas vencendo nos próximos 30 dias
       prisma.vacinaAplicada.findMany({
@@ -53,6 +55,25 @@ export async function gerarNotificacoes(userId: string) {
           inicio: { gte: inicioDia, lte: fimDia },
           status: { in: ["AGENDADO", "CONFIRMADO"] },
         },
+      }),
+      // Lancamentos DESPESA vencendo amanhã
+      prisma.lancamento.findMany({
+        where: { tipo: "DESPESA", status: "PENDENTE", vencimento: { gte: amanha, lte: amanhaFim } },
+        include: { compra: { include: { fornecedor: { select: { nome: true } } } } },
+        orderBy: { vencimento: "asc" },
+      }),
+      // Lancamentos DESPESA vencendo hoje
+      prisma.lancamento.findMany({
+        where: { tipo: "DESPESA", status: "PENDENTE", vencimento: { gte: inicioDia, lte: fimDia } },
+        include: { compra: { include: { fornecedor: { select: { nome: true } } } } },
+        orderBy: { vencimento: "asc" },
+      }),
+      // Lancamentos DESPESA vencidos (overdue)
+      prisma.lancamento.findMany({
+        where: { tipo: "DESPESA", status: "PENDENTE", vencimento: { lt: inicioDia } },
+        include: { compra: { include: { fornecedor: { select: { nome: true } } } } },
+        orderBy: { vencimento: "asc" },
+        take: 10,
       }),
     ]);
 
@@ -107,6 +128,43 @@ export async function gerarNotificacoes(userId: string) {
       mensagem: `${agendamentosHoje} consulta(s) agendada(s) para hoje`,
       tipo: "INFO",
       link: "/agenda",
+    });
+  }
+
+  // Pagamentos vencidos
+  for (const l of lancamentosVencidos) {
+    const diasAtraso = Math.floor((agora.getTime() - l.vencimento.getTime()) / 86400000);
+    const fonte = l.compra?.fornecedor?.nome ?? l.descricao;
+    notifs.push({
+      userId,
+      titulo: "Pagamento em atraso",
+      mensagem: `${fonte} — R$ ${l.valor.toFixed(2)} — venceu há ${diasAtraso} dia(s)`,
+      tipo: "ERRO",
+      link: "/financeiro",
+    });
+  }
+
+  // Pagamentos vencendo hoje
+  for (const l of lancamentosHoje) {
+    const fonte = l.compra?.fornecedor?.nome ?? l.descricao;
+    notifs.push({
+      userId,
+      titulo: "Pagamento vence hoje",
+      mensagem: `${fonte} — R$ ${l.valor.toFixed(2)}${l.totalParcelas && l.totalParcelas > 1 ? ` (Parc. ${l.parcelaNum}/${l.totalParcelas})` : ""}`,
+      tipo: "ALERTA",
+      link: "/financeiro",
+    });
+  }
+
+  // Pagamentos vencendo amanhã
+  for (const l of lancamentosAmanha) {
+    const fonte = l.compra?.fornecedor?.nome ?? l.descricao;
+    notifs.push({
+      userId,
+      titulo: "Pagamento vence amanhã",
+      mensagem: `${fonte} — R$ ${l.valor.toFixed(2)}${l.totalParcelas && l.totalParcelas > 1 ? ` (Parc. ${l.parcelaNum}/${l.totalParcelas})` : ""} — Agendar pagamento`,
+      tipo: "ALERTA",
+      link: "/financeiro",
     });
   }
 
