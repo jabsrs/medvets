@@ -32,6 +32,7 @@ model User {
   notificacoes     Notificacao[]
   modelosOrcamento ModeloOrcamento[]
   propostas        Proposta[]
+  compras          Compra[]
 
   @@map("users")
 }
@@ -352,6 +353,71 @@ model EvolucaoInternacao {
   @@map("evolucoes_internacao")
 }
 
+// ─── Fornecedores e Compras ───────────────────────────────────────────────────
+
+model Fornecedor {
+  id         String   @id @default(cuid())
+  nome       String
+  cnpj       String?  @unique
+  ie         String?
+  telefone   String?
+  email      String?
+  logradouro String?
+  numero     String?
+  bairro     String?
+  cidade     String?
+  estado     String?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  compras Compra[]
+
+  @@map("fornecedores")
+}
+
+model Compra {
+  id           String    @id @default(cuid())
+  codigo       Int       @default(autoincrement())
+  fornecedorId String?
+  userId       String
+  nf           String?
+  chaveNfe     String?
+  emissaoNf    DateTime?
+  dataEntrada  DateTime  @default(now())
+  natureza     String?
+  total        Float     @default(0)
+  obs          String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  fornecedor Fornecedor?  @relation(fields: [fornecedorId], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  itens      CompraItem[]
+
+  @@map("compras")
+}
+
+model CompraItem {
+  id          String  @id @default(cuid())
+  compraId    String
+  produtoId   String?
+  codigoProd  String?
+  nomeProd    String
+  marca       String?
+  quantidade  Float
+  vlUnit      Float
+  vlTotal     Float
+  usoInterno  Boolean @default(false)
+  markup      Float?
+  precoVenda  Float?
+
+  compra  Compra   @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  produto Produto? @relation(fields: [produtoId], references: [id])
+
+  @@map("compras_itens")
+}
+
 // ─── Produtos e Estoque ───────────────────────────────────────────────────────
 
 model Categoria {
@@ -381,16 +447,18 @@ model Produto {
   estoque     Float       @default(0)
   estoqueMin  Float       @default(0)
   unidade     String      @default("un")
+  usoInterno  Boolean     @default(false)
   ativo       Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  categoria     Categoria?            @relation(fields: [categoriaId], references: [id])
-  itensVenda    ItemVenda[]
-  movimentacoes MovEstoque[]
-  comissoes     Comissao[]
-  itensModelo   ModeloOrcamentoItem[]
+  categoria      Categoria?            @relation(fields: [categoriaId], references: [id])
+  itensVenda     ItemVenda[]
+  movimentacoes  MovEstoque[]
+  comissoes      Comissao[]
+  itensModelo    ModeloOrcamentoItem[]
   itensPropostas PropostaItem[]
+  itensCompra    CompraItem[]
 
   @@map("produtos")
 }

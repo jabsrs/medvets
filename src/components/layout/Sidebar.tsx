@@ -40,6 +40,7 @@ const nav: NavItem[] = [
     type: "section", label: "Estoque e serviços", icon: Package,
     children: [
       { href: "/estoque", label: "Produtos e serviços" },
+      { href: "/estoque/compras", label: "Compras" },
     ],
   },
   {
