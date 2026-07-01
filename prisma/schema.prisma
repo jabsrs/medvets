@@ -31,6 +31,7 @@ model User {
   comissoes        Comissao[]
   notificacoes     Notificacao[]
   modelosOrcamento ModeloOrcamento[]
+  propostas        Proposta[]
 
   @@map("users")
 }
@@ -62,8 +63,9 @@ model Tutor {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  animais Animal[]
-  vendas  Venda[]
+  animais   Animal[]
+  vendas    Venda[]
+  propostas Proposta[]
 
   @@map("tutores")
 }
@@ -95,6 +97,7 @@ model Animal {
   pesos        PesoRegistro[]
   exames       ExameSolicitado[]
   documentos   Documento[]
+  propostas    Proposta[]
 
   @@map("animais")
 }
@@ -387,6 +390,7 @@ model Produto {
   movimentacoes MovEstoque[]
   comissoes     Comissao[]
   itensModelo   ModeloOrcamentoItem[]
+  itensPropostas PropostaItem[]
 
   @@map("produtos")
 }
@@ -566,6 +570,50 @@ enum TipoNotif {
   ALERTA
   SUCESSO
   ERRO
+}
+
+// ─── Orçamentos (por animal) ─────────────────────────────────────────────────
+
+model Proposta {
+  id        String          @id @default(cuid())
+  animalId  String
+  tutorId   String?
+  userId    String
+  status    StatusProposta  @default(PENDENTE)
+  validade  DateTime
+  obs       String?
+  total     Float           @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  animal Animal         @relation(fields: [animalId], references: [id])
+  tutor  Tutor?         @relation(fields: [tutorId], references: [id])
+  user   User           @relation(fields: [userId], references: [id])
+  itens  PropostaItem[]
+
+  @@map("propostas")
+}
+
+model PropostaItem {
+  id          String @id @default(cuid())
+  propostaId  String
+  produtoId   String
+  quantidade  Float
+  preco       Float
+  desconto    Float  @default(0)
+  subtotal    Float
+
+  proposta Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+  produto  Produto  @relation(fields: [produtoId], references: [id])
+
+  @@map("propostas_itens")
+}
+
+enum StatusProposta {
+  PENDENTE
+  APROVADO
+  RECUSADO
+  EXPIRADO
 }
 
 // ─── Modelos de Orçamento ────────────────────────────────────────────────────

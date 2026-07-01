@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
   const tipo = searchParams.get("tipo");
+  const limit = Math.min(Number(searchParams.get("limit") ?? "100"), 100);
 
   const where: Record<string, unknown> = { ativo: true };
   if (tipo) where.tipo = tipo;
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     where,
     include: { categoria: true },
     orderBy: { nome: "asc" },
-    take: 100,
+    take: limit,
   });
 
   return NextResponse.json(produtos);
