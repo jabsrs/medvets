@@ -3,6 +3,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,9 +31,17 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🐾</div>
-          <h1 className="text-2xl font-bold text-gray-900">MedVets</h1>
-          <p className="text-gray-500 text-sm mt-1">Gestão Veterinária</p>
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="MedVets"
+              width={120}
+              height={120}
+              className="rounded-full object-cover shadow-lg"
+              priority
+            />
+          </div>
+          <p className="text-gray-500 text-sm mt-1">Clínica Veterinária · CRMV/SC 14192</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

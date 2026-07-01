@@ -7,6 +7,7 @@ import {
   Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight, BarChart2,
 } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 type NavChild = { href: string; label: string };
 type NavItem =
@@ -78,17 +79,33 @@ export function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between px-3 py-4 border-b border-gray-700">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-gray-700">
         {!collapsed && (
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-xl">🐾</span>
-            <span className="font-bold text-base">MedVets</span>
+          <div className="flex items-center gap-2.5 px-1">
+            <Image
+              src="/logo.png"
+              alt="MedVets"
+              width={36}
+              height={36}
+              className="rounded-full object-cover flex-shrink-0"
+            />
+            <span className="font-bold text-sm leading-tight">MedVets<br/>
+              <span className="text-[10px] font-normal text-gray-400">Clínica Veterinária</span>
+            </span>
           </div>
         )}
-        {collapsed && <span className="text-xl mx-auto">🐾</span>}
+        {collapsed && (
+          <Image
+            src="/logo.png"
+            alt="MedVets"
+            width={32}
+            height={32}
+            className="rounded-full object-cover mx-auto"
+          />
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-gray-400 hover:text-white transition ml-auto"
+          className="text-gray-400 hover:text-white transition ml-auto flex-shrink-0"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
