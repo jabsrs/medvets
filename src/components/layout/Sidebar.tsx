@@ -43,6 +43,7 @@ const nav: NavItem[] = [
       { href: "/estoque", label: "Produtos e serviços" },
       { href: "/estoque/grupos", label: "Grupos" },
       { href: "/estoque/compras", label: "Compras" },
+      { href: "/estoque/saidas", label: "Saídas" },
     ],
   },
   {
