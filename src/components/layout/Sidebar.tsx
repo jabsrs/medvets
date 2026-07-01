@@ -47,6 +47,9 @@ const nav: NavItem[] = [
     type: "section", label: "Financeiro", icon: DollarSign,
     children: [
       { href: "/financeiro", label: "Lançamentos" },
+      { href: "/financeiro/contas-pagar", label: "Contas a Pagar" },
+      { href: "/financeiro/fornecedores", label: "Fornecedores" },
+      { href: "/financeiro/formas-pagamento", label: "Formas de Pagamento" },
     ],
   },
   {

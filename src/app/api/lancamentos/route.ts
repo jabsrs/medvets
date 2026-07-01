@@ -9,17 +9,28 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const tipo = searchParams.get("tipo");
-  const status = searchParams.get("status");
+  const tipo        = searchParams.get("tipo");
+  const status      = searchParams.get("status");
+  const q           = searchParams.get("q");
+  const vencDe      = searchParams.get("vencDe");
+  const vencAte     = searchParams.get("vencAte");
 
   const where: Record<string, unknown> = {};
-  if (tipo) where.tipo = tipo;
+  if (tipo)   where.tipo   = tipo;
   if (status) where.status = status;
+  if (q)      where.descricao = { contains: q, mode: "insensitive" };
+  if (vencDe || vencAte) {
+    where.vencimento = {
+      ...(vencDe  ? { gte: new Date(vencDe  + "T00:00:00") } : {}),
+      ...(vencAte ? { lte: new Date(vencAte + "T23:59:59") } : {}),
+    };
+  }
 
   const lancamentos = await prisma.lancamento.findMany({
     where,
+    include: { compra: { include: { fornecedor: { select: { id: true, nome: true } } } } },
     orderBy: { vencimento: "asc" },
-    take: 100,
+    take: 300,
   });
 
   return NextResponse.json(lancamentos);
