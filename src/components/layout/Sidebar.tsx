@@ -61,6 +61,7 @@ const nav: NavItem[] = [
     type: "section", label: "Consultas", icon: Search,
     children: [
       { href: "/consultas/aniversarios", label: "Aniversários" },
+      { href: "/consultas/atendimentos", label: "Atendimentos" },
       { href: "/vacinas", label: "Vacinação" },
       { href: "/internacao", label: "Internação" },
     ],
