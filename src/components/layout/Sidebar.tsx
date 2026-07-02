@@ -46,6 +46,7 @@ const nav: NavItem[] = [
     children: [
       { href: "/estoque",         label: "Produtos e serviços" },
       { href: "/estoque/grupos",  label: "Grupos" },
+      { href: "/estoque/analise", label: "Análise de estoque" },
       { href: "/estoque/compras", label: "Compras" },
       { href: "/estoque/saidas",  label: "Saídas" },
     ],

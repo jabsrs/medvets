@@ -468,6 +468,7 @@ model Produto {
   custo       Float?
   estoque     Float       @default(0)
   estoqueMin  Float       @default(0)
+  estoqueMax  Float?
   unidade     String      @default("un")
   usoInterno  Boolean     @default(false)
   ativo       Boolean     @default(true)

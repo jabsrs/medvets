@@ -20,6 +20,7 @@ type Produto = {
   custo?: number;
   estoque: number;
   estoqueMin: number;
+  estoqueMax?: number | null;
   unidade: string;
   ativo: boolean;
   categoria?: { nome: string };
@@ -27,7 +28,7 @@ type Produto = {
 };
 
 const emptyForm = {
-  nome: "", tipo: "PRODUTO", preco: "", custo: "", estoque: "", estoqueMin: "0",
+  nome: "", tipo: "PRODUTO", preco: "", custo: "", estoque: "", estoqueMin: "0", estoqueMax: "",
   unidade: "un", codigo: "", descricao: "", grupoProdutoId: "",
 };
 
@@ -82,7 +83,8 @@ export default function EstoquePage() {
     setEditId(p.id);
     setForm({
       nome: p.nome, tipo: p.tipo, preco: String(p.preco), custo: String(p.custo ?? ""),
-      estoque: String(p.estoque), estoqueMin: String(p.estoqueMin), unidade: p.unidade,
+      estoque: String(p.estoque), estoqueMin: String(p.estoqueMin),
+      estoqueMax: p.estoqueMax != null ? String(p.estoqueMax) : "", unidade: p.unidade,
       codigo: p.codigo ?? "", descricao: "",
       grupoProdutoId: p.grupoProduto?.id ?? "",
     });
@@ -101,6 +103,7 @@ export default function EstoquePage() {
         custo:          form.custo ? Number(form.custo) : null,
         estoque:        Number(form.estoque),
         estoqueMin:     Number(form.estoqueMin),
+        estoqueMax:     form.estoqueMax ? Number(form.estoqueMax) : null,
         grupoProdutoId: form.grupoProdutoId || null,
       };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -249,6 +252,7 @@ export default function EstoquePage() {
             <>
               <Input label="Estoque atual" type="number" value={form.estoque} onChange={e => setForm({ ...form, estoque: e.target.value })} />
               <Input label="Estoque mínimo" type="number" value={form.estoqueMin} onChange={e => setForm({ ...form, estoqueMin: e.target.value })} />
+              <Input label="Estoque máximo" type="number" value={form.estoqueMax} onChange={e => setForm({ ...form, estoqueMax: e.target.value })} placeholder="opcional" />
             </>
           )}
           <Input label="Unidade" value={form.unidade} onChange={e => setForm({ ...form, unidade: e.target.value })} placeholder="un, cx, ml, kg..." />
