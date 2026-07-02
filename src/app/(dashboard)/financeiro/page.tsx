@@ -9,12 +9,14 @@ import { toast } from "sonner";
 import { Plus, TrendingUp, TrendingDown, DollarSign, AlertTriangle, Clock } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+type Conta = { id: string; nome: string; cor: string };
 type Lancamento = {
   id: string; tipo: string; descricao: string; valor: number;
   vencimento: string; pagamento?: string; status: string; categoria?: string;
+  conta?: Conta | null;
 };
 
-const emptyForm = { tipo: "RECEITA", descricao: "", valor: "", vencimento: "", categoria: "", obs: "" };
+const emptyForm = { tipo: "RECEITA", descricao: "", valor: "", vencimento: "", categoria: "", obs: "", contaId: "" };
 
 const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
@@ -37,16 +39,24 @@ export default function FinanceiroPage() {
   const [saving, setSaving] = useState(false);
   const [aba, setAba] = useState<"todos" | "receitas" | "despesas">("todos");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroConta, setFiltroConta] = useState("");
+  const [contas, setContas] = useState<Conta[]>([]);
 
   const fetchLancamentos = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/lancamentos");
+    const params = new URLSearchParams();
+    if (filtroConta) params.set("contaId", filtroConta);
+    const res = await fetch(`/api/lancamentos?${params}`);
     const data = await res.json();
     setLancamentos(data);
     setLoading(false);
-  }, []);
+  }, [filtroConta]);
 
   useEffect(() => { fetchLancamentos(); }, [fetchLancamentos]);
+
+  useEffect(() => {
+    fetch("/api/contas-bancarias").then(r => r.json()).then(setContas);
+  }, []);
 
   async function save() {
     if (!form.descricao || !form.valor || !form.vencimento) {
@@ -56,7 +66,7 @@ export default function FinanceiroPage() {
     try {
       const res = await fetch("/api/lancamentos", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, valor: Number(form.valor) }),
+        body: JSON.stringify({ ...form, valor: Number(form.valor), contaId: form.contaId || null }),
       });
       if (!res.ok) throw new Error();
       toast.success("Lançamento criado!");
@@ -200,13 +210,22 @@ export default function FinanceiroPage() {
             </button>
           ))}
         </div>
-        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-          <option value="">Todos os status</option>
-          <option value="PENDENTE">Pendente</option>
-          <option value="PAGO">Pago</option>
-          <option value="CANCELADO">Cancelado</option>
-        </select>
+        <div className="flex items-center gap-2">
+          {contas.length > 0 && (
+            <select value={filtroConta} onChange={e => setFiltroConta(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+              <option value="">Todas as contas</option>
+              {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          )}
+          <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            <option value="">Todos os status</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="PAGO">Pago</option>
+            <option value="CANCELADO">Cancelado</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabela */}
@@ -237,7 +256,15 @@ export default function FinanceiroPage() {
                       {alerta === "hoje" && <Clock size={14} className="text-amber-500 flex-shrink-0" />}
                       <div>
                         <p className="font-medium text-gray-900">{l.descricao}</p>
-                        {l.categoria && <p className="text-xs text-gray-400">{l.categoria}</p>}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {l.categoria && <span className="text-xs text-gray-400">{l.categoria}</span>}
+                          {l.conta && (
+                            <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium"
+                              style={{ backgroundColor: l.conta.cor + "20", color: l.conta.cor }}>
+                              {l.conta.nome}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -284,6 +311,12 @@ export default function FinanceiroPage() {
             <Input label="Vencimento *" type="date" value={form.vencimento} onChange={e => setForm({ ...form, vencimento: e.target.value })} />
           </div>
           <Input label="Categoria" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} placeholder="Consultas, Aluguel, Medicamentos, Salários..." />
+          {contas.length > 0 && (
+            <Select label="Conta bancária" value={form.contaId} onChange={e => setForm({ ...form, contaId: e.target.value })}>
+              <option value="">Não vinculada</option>
+              {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </Select>
+          )}
           <Textarea label="Observações" value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} rows={2} />
         </div>
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">

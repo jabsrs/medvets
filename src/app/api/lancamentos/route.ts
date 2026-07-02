@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
   const q           = searchParams.get("q");
   const vencDe      = searchParams.get("vencDe");
   const vencAte     = searchParams.get("vencAte");
+  const contaId     = searchParams.get("contaId");
 
   const where: Record<string, unknown> = {};
-  if (tipo)   where.tipo   = tipo;
-  if (status) where.status = status;
-  if (q)      where.descricao = { contains: q, mode: "insensitive" };
+  if (tipo)    where.tipo    = tipo;
+  if (status)  where.status  = status;
+  if (contaId) where.contaId = contaId;
+  if (q)       where.descricao = { contains: q, mode: "insensitive" };
   if (vencDe || vencAte) {
     where.vencimento = {
       ...(vencDe  ? { gte: new Date(vencDe  + "T00:00:00") } : {}),
@@ -28,7 +30,10 @@ export async function GET(req: NextRequest) {
 
   const lancamentos = await prisma.lancamento.findMany({
     where,
-    include: { compra: { include: { fornecedor: { select: { id: true, nome: true } } } } },
+    include: {
+      compra: { include: { fornecedor: { select: { id: true, nome: true } } } },
+      conta:  { select: { id: true, nome: true, cor: true } },
+    },
     orderBy: { vencimento: "asc" },
     take: 300,
   });

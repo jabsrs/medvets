@@ -663,14 +663,43 @@ model Lancamento {
   categoria      String?
   formaPagamento String?
   compraId       String?
+  contaId        String?
   parcelaNum     Int?
   totalParcelas  Int?
   obs            String?
   createdAt      DateTime       @default(now())
 
-  compra Compra? @relation(fields: [compraId], references: [id])
+  compra Compra?         @relation(fields: [compraId], references: [id])
+  conta  ContaBancaria?  @relation(fields: [contaId], references: [id])
 
   @@map("lancamentos")
+}
+
+enum TipoConta {
+  CORRENTE
+  POUPANCA
+  CAIXA
+  CARTEIRA
+  OUTRO
+}
+
+model ContaBancaria {
+  id           String    @id @default(cuid())
+  nome         String
+  banco        String?
+  agencia      String?
+  numero       String?
+  tipo         TipoConta @default(CORRENTE)
+  saldoInicial Float     @default(0)
+  cor          String    @default("#0EA5E9")
+  ativo        Boolean   @default(true)
+  ordem        Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lancamentos Lancamento[]
+
+  @@map("contas_bancarias")
 }
 
 enum TipoLancamento {
