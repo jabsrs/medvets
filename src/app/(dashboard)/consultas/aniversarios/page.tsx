@@ -61,6 +61,7 @@ function fmtDataCompleta(iso: string) {
 
 function diasParaAniversario(dataNasc: string): number {
   const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0); // comparar só datas, sem horário
   const d    = new Date(dataNasc);
   const prox = new Date(hoje.getFullYear(), d.getMonth(), d.getDate());
   if (prox < hoje) prox.setFullYear(hoje.getFullYear() + 1);
