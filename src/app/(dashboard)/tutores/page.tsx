@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Plus, Search, Phone, Mail, PawPrint, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { especieEmoji } from "@/lib/utils";
+import { ORIGENS_CLIENTE } from "@/lib/origens";
 
 type Tutor = {
   id: string;
@@ -18,13 +19,14 @@ type Tutor = {
   telefone: string;
   celular?: string;
   dataNasc?: string;
+  origem?: string;
   cidade?: string;
   estado?: string;
   animais: { id: string; nome: string; especie: string }[];
 };
 
 const emptyForm = {
-  nome: "", cpf: "", email: "", telefone: "", celular: "", dataNasc: "",
+  nome: "", cpf: "", email: "", telefone: "", celular: "", dataNasc: "", origem: "",
   cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: "", obs: "",
 };
 
@@ -76,7 +78,7 @@ export default function TutoresPage() {
     try {
       const url = editId ? `/api/tutores/${editId}` : "/api/tutores";
       const method = editId ? "PATCH" : "POST";
-      const payload = { ...form, dataNasc: form.dataNasc || null };
+      const payload = { ...form, dataNasc: form.dataNasc || null, origem: form.origem || null };
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -208,6 +210,10 @@ export default function TutoresPage() {
           <Input label="Telefone *" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 99999-9999" />
           <Input label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} placeholder="(11) 99999-9999" />
           <Input label="Data de nascimento" type="date" value={form.dataNasc} onChange={(e) => setForm({ ...form, dataNasc: e.target.value })} />
+          <Select label="Como conheceu a clínica?" value={form.origem} onChange={(e) => setForm({ ...form, origem: e.target.value })}>
+            <option value="">Não informado</option>
+            {ORIGENS_CLIENTE.map((o) => <option key={o} value={o}>{o}</option>)}
+          </Select>
           <Input label="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" />
           <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
           <div className="col-span-2">
