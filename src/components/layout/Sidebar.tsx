@@ -1,19 +1,21 @@
 "use client";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Stethoscope, User, Calendar, ShoppingCart,
   Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight, BarChart2, Percent,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 
 type NavChild = { href: string; label: string };
+type NavSection = { type: "section"; label: string; icon: React.ElementType; children: NavChild[] };
 type NavItem =
   | { type: "link"; href: string; label: string; icon: React.ElementType }
   | { type: "divider" }
-  | { type: "section"; label: string; icon: React.ElementType; children: NavChild[] };
+  | NavSection;
 
 const nav: NavItem[] = [
   { type: "link", href: "/dashboard",  label: "Painel de controle",  icon: LayoutDashboard },
@@ -84,18 +86,21 @@ const nav: NavItem[] = [
   },
 ];
 
+type FlyoutState = { label: string; top: number; left: number };
+
 export function Sidebar() {
   const pathname  = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [flyout, setFlyout]       = useState<string | null>(null);
+  const [flyout, setFlyout]       = useState<FlyoutState | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Exact match para links simples
   function isLinkActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  // Para filhos de seção: retorna qual filho é o MELHOR match (mais longo)
-  // evita que "/vendas" fique ativo quando estamos em "/vendas/caixa"
+  // Entre os filhos de uma seção, retorna o href de match MAIS LONGO
+  // (evita que "/vendas" fique ativo quando estamos em "/vendas/caixa")
   function bestChild(children: NavChild[]): string | null {
     let best: string | null = null;
     for (const c of children) {
@@ -105,6 +110,22 @@ export function Sidebar() {
     }
     return best;
   }
+
+  function openFlyout(label: string, el: HTMLElement) {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    const rect = el.getBoundingClientRect();
+    setFlyout({ label, top: rect.top, left: rect.right + 8 });
+  }
+  function scheduleCloseFlyout() {
+    closeTimer.current = setTimeout(() => setFlyout(null), 150);
+  }
+  function cancelCloseFlyout() {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  }
+
+  const openSection = flyout
+    ? (nav.find(i => i.type === "section" && i.label === flyout.label) as NavSection | undefined)
+    : undefined;
 
   return (
     <aside
@@ -136,7 +157,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-2 overflow-y-auto">
+      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
         {nav.map((item, i) => {
           if (item.type === "divider") {
             return <div key={i} className="my-2 mx-3 border-t border-gray-700" />;
@@ -165,60 +186,28 @@ export function Sidebar() {
 
           // section
           const Icon = item.icon;
-          const activeBest   = bestChild(item.children);
-          const anyActive    = activeBest !== null;
+          const activeBest = bestChild(item.children);
+          const anyActive  = activeBest !== null;
 
-          /* ── RECOLHIDO: ícone + flyout via estado JS ────────────── */
+          /* ── RECOLHIDO: ícone clicável (navega p/ 1º filho) + hover abre flyout ── */
           if (collapsed) {
-            const isOpen = flyout === item.label;
+            const firstHref = item.children[0]?.href ?? "#";
             return (
-              <div
+              <Link
                 key={item.label}
-                className="relative mx-2 mb-0.5"
-                onMouseEnter={() => setFlyout(item.label)}
-                onMouseLeave={() => setFlyout(null)}
-              >
-                {/* Ícone da seção */}
-                <div
-                  className={cn(
-                    "flex items-center justify-center py-2 rounded-lg transition-colors",
-                    anyActive
-                      ? "bg-teal-600 text-white"
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  )}
-                >
-                  <Icon size={18} />
-                </div>
-
-                {/* Flyout — controlado por estado, fecha ao clicar link */}
-                {isOpen && (
-                  <div className="absolute left-full top-0 ml-2 z-50 bg-gray-800 rounded-xl shadow-2xl py-2 min-w-[180px] border border-gray-700">
-                    <div className="px-3 py-1.5 mb-1 border-b border-gray-700">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                        {item.label}
-                      </p>
-                    </div>
-                    {item.children.map(child => {
-                      const active = activeBest === child.href;
-                      return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={() => setFlyout(null)}
-                          className={cn(
-                            "block px-3 py-1.5 text-sm transition-colors",
-                            active
-                              ? "text-teal-400 font-medium"
-                              : "text-gray-300 hover:text-white hover:bg-gray-700"
-                          )}
-                        >
-                          {child.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
+                href={firstHref}
+                title={item.label}
+                onMouseEnter={e => openFlyout(item.label, e.currentTarget)}
+                onMouseLeave={scheduleCloseFlyout}
+                className={cn(
+                  "flex items-center justify-center py-2 mx-2 mb-0.5 rounded-lg transition-colors",
+                  anyActive
+                    ? "bg-teal-600 text-white"
+                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
                 )}
-              </div>
+              >
+                <Icon size={18} />
+              </Link>
             );
           }
 
@@ -264,6 +253,42 @@ export function Sidebar() {
           {!collapsed && <span>Sair</span>}
         </Link>
       </div>
+
+      {/* Flyout do menu recolhido — renderizado via portal para escapar do
+          overflow-y-auto do <nav> (que corta overflow-x mesmo sem pedir) */}
+      {collapsed && flyout && openSection && typeof document !== "undefined" && createPortal(
+        <div
+          onMouseEnter={cancelCloseFlyout}
+          onMouseLeave={scheduleCloseFlyout}
+          style={{ position: "fixed", top: flyout.top, left: flyout.left }}
+          className="z-50 bg-gray-800 rounded-xl shadow-2xl py-2 min-w-[180px] border border-gray-700"
+        >
+          <div className="px-3 py-1.5 mb-1 border-b border-gray-700">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              {openSection.label}
+            </p>
+          </div>
+          {openSection.children.map(child => {
+            const active = bestChild(openSection.children) === child.href;
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={() => setFlyout(null)}
+                className={cn(
+                  "block px-3 py-1.5 text-sm transition-colors",
+                  active
+                    ? "text-teal-400 font-medium"
+                    : "text-gray-300 hover:text-white hover:bg-gray-700"
+                )}
+              >
+                {child.label}
+              </Link>
+            );
+          })}
+        </div>,
+        document.body
+      )}
     </aside>
   );
 }
