@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/ui/StatCard";
+import { DashboardGreeting } from "@/components/ui/DashboardGreeting";
 import {
   Calendar, Users, PawPrint, TrendingUp, AlertTriangle,
   Clock, Syringe, DollarSign, Stethoscope, Package,
@@ -9,13 +10,6 @@ import {
 } from "lucide-react";
 import { formatCurrency, especieEmoji } from "@/lib/utils";
 import Link from "next/link";
-
-function saudacao() {
-  const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
-}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -158,14 +152,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {saudacao()}{session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""}! 👋
-        </h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          {now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </p>
-      </div>
+      <DashboardGreeting nome={session?.user?.name?.split(" ")[0] ?? ""} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
