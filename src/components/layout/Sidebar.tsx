@@ -85,8 +85,9 @@ const nav: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname  = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [flyout, setFlyout]       = useState<string | null>(null);
 
   // Exact match para links simples
   function isLinkActive(href: string) {
@@ -167,14 +168,20 @@ export function Sidebar() {
           const activeBest   = bestChild(item.children);
           const anyActive    = activeBest !== null;
 
-          /* ── RECOLHIDO: ícone + flyout ao hover ─────────────────── */
+          /* ── RECOLHIDO: ícone + flyout via estado JS ────────────── */
           if (collapsed) {
+            const isOpen = flyout === item.label;
             return (
-              <div key={item.label} className="relative group/flyout mx-2 mb-0.5">
+              <div
+                key={item.label}
+                className="relative mx-2 mb-0.5"
+                onMouseEnter={() => setFlyout(item.label)}
+                onMouseLeave={() => setFlyout(null)}
+              >
                 {/* Ícone da seção */}
                 <div
                   className={cn(
-                    "flex items-center justify-center py-2 rounded-lg cursor-pointer transition-colors",
+                    "flex items-center justify-center py-2 rounded-lg transition-colors",
                     anyActive
                       ? "bg-teal-600 text-white"
                       : "text-gray-400 hover:bg-gray-800 hover:text-white"
@@ -183,37 +190,34 @@ export function Sidebar() {
                   <Icon size={18} />
                 </div>
 
-                {/* Flyout — aparece ao hover */}
-                <div className="
-                  absolute left-full top-0 ml-2 z-50
-                  hidden group-hover/flyout:block
-                  bg-gray-800 rounded-xl shadow-2xl py-2
-                  min-w-[180px] border border-gray-700
-                ">
-                  {/* Cabeçalho da seção */}
-                  <div className="px-3 py-1.5 mb-1 border-b border-gray-700">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      {item.label}
-                    </p>
+                {/* Flyout — controlado por estado, fecha ao clicar link */}
+                {isOpen && (
+                  <div className="absolute left-full top-0 ml-2 z-50 bg-gray-800 rounded-xl shadow-2xl py-2 min-w-[180px] border border-gray-700">
+                    <div className="px-3 py-1.5 mb-1 border-b border-gray-700">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                        {item.label}
+                      </p>
+                    </div>
+                    {item.children.map(child => {
+                      const active = activeBest === child.href;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => setFlyout(null)}
+                          className={cn(
+                            "block px-3 py-1.5 text-sm transition-colors",
+                            active
+                              ? "text-teal-400 font-medium"
+                              : "text-gray-300 hover:text-white hover:bg-gray-700"
+                          )}
+                        >
+                          {child.label}
+                        </Link>
+                      );
+                    })}
                   </div>
-                  {item.children.map(child => {
-                    const active = activeBest === child.href;
-                    return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className={cn(
-                          "block px-3 py-1.5 text-sm transition-colors",
-                          active
-                            ? "text-teal-400 font-medium"
-                            : "text-gray-300 hover:text-white hover:bg-gray-700"
-                        )}
-                      >
-                        {child.label}
-                      </Link>
-                    );
-                  })}
-                </div>
+                )}
               </div>
             );
           }
