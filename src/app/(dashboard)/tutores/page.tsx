@@ -16,13 +16,15 @@ type Tutor = {
   cpf?: string;
   email?: string;
   telefone: string;
+  celular?: string;
+  dataNasc?: string;
   cidade?: string;
   estado?: string;
   animais: { id: string; nome: string; especie: string }[];
 };
 
 const emptyForm = {
-  nome: "", cpf: "", email: "", telefone: "", celular: "",
+  nome: "", cpf: "", email: "", telefone: "", celular: "", dataNasc: "",
   cep: "", logradouro: "", numero: "", bairro: "", cidade: "", estado: "", obs: "",
 };
 
@@ -58,7 +60,10 @@ export default function TutoresPage() {
 
   function openEdit(t: Tutor) {
     setEditId(t.id);
-    setForm({ ...emptyForm, ...t });
+    setForm({
+      ...emptyForm, ...t,
+      dataNasc: t.dataNasc ? t.dataNasc.slice(0, 10) : "",
+    });
     setModalOpen(true);
   }
 
@@ -71,10 +76,11 @@ export default function TutoresPage() {
     try {
       const url = editId ? `/api/tutores/${editId}` : "/api/tutores";
       const method = editId ? "PATCH" : "POST";
+      const payload = { ...form, dataNasc: form.dataNasc || null };
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       toast.success(editId ? "Tutor atualizado!" : "Tutor cadastrado!");
@@ -201,6 +207,7 @@ export default function TutoresPage() {
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" />
           <Input label="Telefone *" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 99999-9999" />
           <Input label="Celular" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} placeholder="(11) 99999-9999" />
+          <Input label="Data de nascimento" type="date" value={form.dataNasc} onChange={(e) => setForm({ ...form, dataNasc: e.target.value })} />
           <Input label="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} placeholder="00000-000" />
           <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
           <div className="col-span-2">

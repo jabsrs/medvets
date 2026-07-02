@@ -61,6 +61,7 @@ model Tutor {
   cidade     String?
   estado     String?
   obs        String?
+  dataNasc   DateTime?
   ativo      Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
