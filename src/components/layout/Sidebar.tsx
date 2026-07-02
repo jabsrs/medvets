@@ -33,6 +33,7 @@ const nav: NavItem[] = [
       { href: "/vendas/caixa", label: "Caixa" },
       { href: "/vendas/recebimentos", label: "Recebimentos" },
       { href: "/vendas", label: "Ponto de venda" },
+      { href: "/vendas/lista-precos", label: "Lista de preços" },
       { href: "/vendas/orcamentos", label: "Modelos de orçamento" },
       { href: "/vendas/saldo-clientes", label: "Saldo dos clientes" },
       { href: "/vendas/ranking-clientes", label: "Ranking de clientes" },
