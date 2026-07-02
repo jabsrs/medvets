@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Stethoscope, User, Calendar, ShoppingCart,
-  Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight, BarChart2,
+  Package, DollarSign, Search, Settings, ChevronLeft, ChevronRight, BarChart2, Percent,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -62,6 +62,13 @@ const nav: NavItem[] = [
       { href: "/consultas/aniversarios", label: "Aniversários" },
       { href: "/vacinas", label: "Vacinação" },
       { href: "/internacao", label: "Internação" },
+    ],
+  },
+  {
+    type: "section", label: "Comissionamento", icon: Percent,
+    children: [
+      { href: "/comissionamento", label: "Resumo" },
+      { href: "/comissionamento/extrato", label: "Extrato" },
     ],
   },
   { type: "link", href: "/relatorios", label: "Relatórios", icon: BarChart2 },
