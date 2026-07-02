@@ -483,6 +483,7 @@ model Produto {
   itensModelo    ModeloOrcamentoItem[]
   itensPropostas PropostaItem[]
   itensCompra    CompraItem[]
+  itensInventario InventarioItem[]
 
   @@map("produtos")
 }
@@ -505,6 +506,44 @@ model MovEstoque {
   produto Produto @relation(fields: [produtoId], references: [id])
 
   @@map("mov_estoque")
+}
+
+enum StatusInventario {
+  ABERTO
+  FINALIZADO
+  CANCELADO
+}
+
+model Inventario {
+  id             String           @id @default(cuid())
+  descricao      String?
+  status         StatusInventario @default(ABERTO)
+  grupoProdutoId String?
+  userId         String?
+  obs            String?
+  finalizadoEm   DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  itens InventarioItem[]
+
+  @@map("inventarios")
+}
+
+model InventarioItem {
+  id             String  @id @default(cuid())
+  inventarioId   String
+  produtoId      String
+  estoqueSistema Float                     // snapshot no momento da abertura
+  estoqueContado Float?                    // null até ser contado
+  contado        Boolean @default(false)
+  ajuste         Float   @default(0)       // contado - sistema (calculado ao finalizar)
+
+  inventario Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  produto    Produto    @relation(fields: [produtoId], references: [id])
+
+  @@unique([inventarioId, produtoId])
+  @@map("inventario_itens")
 }
 
 enum TipoMov {
